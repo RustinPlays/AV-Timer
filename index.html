@@ -932,7 +932,7 @@ select,
     <div id="startToggles">
       <label class="toggleBtn" for="showProgress"><input type="checkbox" id="showProgress" /> Progress Bar</label>
       <label class="toggleBtn"><input type="checkbox" id="countUpToggle" /> Count Up</label>
-      <label class="toggleBtn"><input type="checkbox" id="autostartToggle" /> Autostart</label>
+      <label class="toggleBtn"><input type="checkbox" id="autostartToggle" checked /> Autostart Autostart</label>
       <label class="toggleBtn"><input type="checkbox" id="queueToggle" /> Queue</label>
     </div>
   </div>
@@ -1722,6 +1722,21 @@ document.addEventListener('click', (e) => {
   if (!running) {
     startTimer();
   } else {
+    togglePause();
+  }
+});
+// Tap/click on empty background to Start or Pause/Resume (PC + iPad)
+document.addEventListener('pointerdown', (e) => {
+  // Ignore taps on UI controls and panels
+  if (e.target.closest('button, input, select, label, #controls, #startContainer, #queueContainer, #colorGrid, #bottomRightControls, #topRightControls')) {
+    return;
+  }
+
+  // If no timer is running or paused -> try to start
+  if (!running && !paused) {
+    startTimer();
+  } else {
+    // If already running or paused -> toggle pause/resume
     togglePause();
   }
 });
