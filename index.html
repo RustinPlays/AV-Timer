@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1715,6 +1714,18 @@ timerInterval = setInterval(tick, 1000);
       modeToggle.textContent = 'Light Mode';
       chromaModeToggle.textContent = 'Chroma Mode';
     });
+      // Tap anywhere on screen to start / pause
+document.addEventListener('click', (e) => {
+  // Don't trigger if you tapped a button, input, slider, or select element
+  if (e.target.closest('button, input, select, label')) return;
+
+  if (!running) {
+    startTimer();
+  } else {
+    togglePause();
+  }
+});
+
   </script>
 </body>
 </html>
