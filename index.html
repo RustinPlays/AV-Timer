@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>Fullscreen Timer</title>
+  <style>
+    /* Root CSS variables for colors */
+    :root {
+      --bg: #000000;
+      --fg: #f5f5f5;
+      --accent: #4bb7ff;
+      --warning: #ff4b4b;
+      --stroke: #000000;
+      --outline-w: 0.6vw; /* UI outline thickness (vw) */
+      --outline-text: 0.04em; /* Text stroke thickness (scales with font) */
+      --chroma: #00FF00; /* default chroma key color */
+      --action-w: 20ch; /* unified width for bottom controls */
+      --action-h: calc(1.8em + 18px); /* unified height matches toggle */
+
+      --panel-bg: rgba(15, 15, 20, 0.9);
+      --panel-border: rgba(255, 255, 255, 0.12);
+      --panel-radius: 14px;
+      --panel-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+
+      --input-bg: rgba(255, 255, 255, 0.04);
+      --input-border: rgba(255, 255, 255, 0.25);
+      --input-border-focus: #ffffff;
+      --button-bg: rgba(255, 255, 255, 0.06);
+      --button-bg-hover: rgba(255, 255, 255, 0.16);
+      --button-border: rgba(255, 255, 255, 0.25);
+      --button-border-strong: rgba(255, 255, 255, 0.8);
+    }
+
+    /* Light mode color overrides */
+    body.light {
+      --bg: #f6f7fb;
+      --fg: #111827;
+      --accent: #4bb7ff;
+      --warning: #dc2626;
+      --panel-bg: rgba(255, 255, 255, 0.95);
+      --panel-border: rgba(15, 23, 42, 0.06);
+      --panel-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+      --input-bg: rgba(15, 23, 42, 0.02);
+      --input-border: rgba(148, 163, 184, 0.7);
+      --button-bg: rgba(15, 23, 42, 0.02);
+      --button-bg-hover: rgba(15, 23, 42, 0.08);
+      --button-border: rgba(148, 163, 184, 0.8);
+      --button-border-strong: rgba(15, 23, 42, 0.9);
+
+      /* override background for light mode */
+      background: linear-gradient(
+        to bottom,
+        #f3f4f6 0%,
+        #f9fafb 40%,
+        #ffffff 100%
+      );
+    }
+
+    /* Chroma key mode overrides and text stroke */
+    body.chroma {
+      /* Background becomes chroma variable */
+      --bg: var(--chroma);
+      /* Keep text white unless warning overrides it */
+      --fg: #ffffff;
+
+      /* Flatten panels (less shadow/edges when keying) */
+      --panel-bg: rgba(0, 0, 0, 0.75);
+      --panel-border: rgba(0, 0, 0, 0.85);
+      --panel-shadow: none;
+    }
+
+    /* Chroma outlines only on the timer text (outside-only via layered stroke) */
+    body.chroma #timer {
+      position: relative;
+      z-index: 0; /* create stacking context for behind-layer */
+    }
+    body.chroma #timer::before {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+      -webkit-text-stroke: var(--outline-text) var(--stroke);
+      /* Larger shadow layered behind stroke + fill */
+      text-shadow: 0.45vw 0.45vw 1vw rgba(0, 0, 0, 0.9);
+      pointer-events: none;
+      z-index: -1; /* ensure shadow+stroke sit behind white fill */
+    }
+
+    /* Outline around progress bar container (and bar) in chroma mode */
+    body.chroma #progressContainer,
+    body.chroma #progressBar {
+      box-shadow: 0 0 0 var(--outline-w) var(--stroke);
+    }
+
+    /* Fullscreen body and html setup */
+    html, body {
+      margin: 0; padding: 0;
+      height: 100%; width: 100%;
+      background: radial-gradient(circle at top, #111827 0%, #020617 40%, var(--bg) 100%);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      user-select: none; /* Disable text selection */
+      overflow: hidden;
+    }
+
+    body.chroma {
+      background: var(--bg); /* Solid background for chroma */
+    }
+
+    /* Hide mouse cursor when active */
+    body.hide-cursor {
+      cursor: none;
+    }
+
+    /* Generic panel style for all floating control groups */
+    .panel {
+      background: var(--panel-bg);
+      border-radius: var(--panel-radius);
+      border: 1px solid var(--panel-border);
+      box-shadow: var(--panel-shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    /* Controls container at top center */
+    #controls {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 16px;
+      font-size: 1.05vw;
+      z-index: 10;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      padding: 12px 18px;
+      box-sizing: border-box;
+      border-radius: var(--panel-radius);
+      border: 1px solid var(--panel-border);
+      background: var(--panel-bg);
+      box-shadow: var(--panel-shadow);
+    }
+
+    /* Preset time buttons container styling */
+    #presetTimes {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      margin-top: 4px;
+      user-select: none;
+    }
+
+    /* Preset Label Styling */
+    #presetLabel {
+      font-size: 0.95em;
+      margin-bottom: 0;
+      color: var(--fg);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      opacity: 0.8;
+      user-select: none;
+    }
+
+    /* Preset time buttons style */
+    #presetTimes button {
+      padding: 6px 12px;
+      font-size: 0.95em;
+      cursor: pointer;
+      user-select: none;
+      border-radius: 999px;
+    }
+
+    /* Timer queue container */
+    #queueContainer {
+      position: absolute;
+      top: 50%;
+      right: 20px;
+      transform: translateY(-50%);
+      width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10;
+      padding: 14px 14px 16px 14px;
+      box-sizing: border-box;
+      border-radius: var(--panel-radius);
+      border: 1px solid var(--panel-border);
+      background: var(--panel-bg);
+      box-shadow: var(--panel-shadow);
+    }
+
+    #queueContainer h3 {
+      margin: 0 0 8px 0;
+      font-size: 1em;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.9;
+    }
+
+    #queueForm {
+      display: flex;
+      gap: 8px;
+    }
+
+    #queueForm input[type="text"] {
+      flex: 1;
+      min-width: 0;
+    }
+
+    #queueList {
+      list-style: none;
+      margin: 6px 0 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 40vh;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    .queueItem {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border: 1px solid var(--button-border);
+      border-radius: 999px;
+      padding: 4px 10px 4px 12px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .queueItem span {
+      flex: 1;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.95em;
+    }
+
+    .queueRemoveBtn {
+      font-size: 0.8em;
+      padding: 4px 9px;
+      min-width: auto;
+    }
+
+    .queueEmpty {
+      border-radius: 999px;
+      padding: 6px 10px;
+      text-align: center;
+      font-size: 0.88em;
+      opacity: 0.65;
+      border: 1px dashed var(--button-border);
+    }
+
+    #startQueueBtn {
+      width: 100%;
+    }
+
+    #queueActions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    #queueActions > button {
+      width: 100%;
+    }
+
+    #queueSecondary {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+
+    #queueSecondary button {
+      width: auto;
+      padding: 6px 16px;
+    }
+
+    #autoNextGroup {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85em;
+      white-space: nowrap;
+      opacity: 0.85;
+    }
+
+    #autoNextGroup input {
+      width: 1.1em;
+      height: 1.1em;
+    }
+
+    #nextTimerButton {
+      position: fixed;
+      bottom: 8px;
+      right: 8px;
+      z-index: 60;
+      min-width: calc(var(--action-w) * 1.3);
+      height: calc(var(--action-h) * 1.1);
+      font-size: 1em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 22px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    /* Start button container fixed at bottom center */
+    #startContainer {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column; /* Start button on first row, toggles below */
+      align-items: center;
+      gap: 12px;
+      padding: 12px 18px 16px;
+      box-sizing: border-box;
+      border-radius: var(--panel-radius);
+      border: 1px solid var(--panel-border);
+      background: var(--panel-bg);
+      box-shadow: var(--panel-shadow);
+    }
+
+    /* Start button style (FOREST GREEN) */
+    #startBtn {
+      font-size: 1.05em;
+      padding: 0 24px;
+      height: var(--action-h);
+      min-width: var(--action-w);
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 999px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: #166534; /* forest green */
+      border-color: var(--button-border-strong);
+      color: #ffffff;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+      transform: translateY(0);
+      transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    #startBtn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+      background: #15803d;
+    }
+    #startBtn:active {
+      transform: translateY(1px);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Row of toggles under Start */
+    #startToggles {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Timer display big text centered */
+    #timer {
+      text-align: center;
+      font-size: 15vw; /* responsive large font size */
+      user-select: none;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Subtle drop shadow for readability when not in chroma */
+    body:not(.chroma) #timer {
+      text-shadow: 0.22vw 0.22vw 0.4vw rgba(0, 0, 0, 0.55);
+    }
+
+    /* Color utility classes */
+    .red {
+      color: var(--accent);
+    }
+
+    .white {
+      color: var(--fg);
+    }
+
+    .warning {
+      color: var(--warning);
+    }
+
+    /* Shortcut key legend position */
+    #shortcutIndex {
+      position: absolute;
+      top: 56px;
+      left: 20px;
+      font-size: clamp(10px, 0.85vw, 14px);
+      font-weight: 600;
+      color: var(--fg);
+      user-select: none;
+      opacity: 0.78;
+      line-height: 1.35;
+      display: inline-block;      /* size box to text */
+      white-space: normal;        /* allow wrapping */
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+                   Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      z-index: 20;
+      padding: 6px 8px;
+      border-radius: 10px;
+      background: rgba(15, 15, 20, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55);
+    }
+    body.light #shortcutIndex {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: rgba(148, 163, 184, 0.6);
+    }
+
+    /* Reset Defaults button (top-left) */
+    #resetDefaultsBtn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 50;
+      font-size: 0.95em;
+      padding: 6px 18px;
+      border-radius: 999px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Hide elements utility */
+    .hidden {
+      display: none !important;
+    }
+
+    /* Progress bar container */
+    #progressContainer {
+      background: rgba(15, 23, 42, 0.7);
+      border-radius: 999px;
+      margin-top: 20px;
+      overflow: hidden;
+      height: 0.75vw; /* default, JS adjusts */
+      width: 50vw;
+      user-select: none;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    /* Actual progress bar fill */
+    #progressBar {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 1s linear;
+      user-select: none;
+    }
+
+    /* Bottom left color pickers stacked vertically */
+    #colorGrid {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-start;
+      justify-content: center;
+      z-index: 10;
+      padding: 10px 12px;
+      box-sizing: border-box;
+      border-radius: var(--panel-radius);
+      border: 1px solid var(--panel-border);
+      background: var(--panel-bg);
+      box-shadow: var(--panel-shadow);
+    }
+
+    /* Color picker labels */
+    #colorGrid label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      user-select: none;
+      font-size: 0.9em;
+      opacity: 0.9;
+    }
+
+    /* Circular color inputs */
+    #colorGrid input[type="color"] {
+      appearance: none;
+      -webkit-appearance: none;
+      padding: 0;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      background: transparent;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    #colorGrid input[type="color"]::-webkit-color-swatch {
+      border: none;
+      border-radius: 50%;
+    }
+    #colorGrid input[type="color"]::-moz-color-swatch {
+      border: none;
+      border-radius: 50%;
+    }
+    body.light #colorGrid input[type="color"] {
+      border-color: rgba(148, 163, 184, 0.8);
+    }
+
+    /* Show chroma color control only in chroma mode */
+    #chromaColorGroup { display: none; }
+    body.chroma #chromaColorGroup { display: flex; }
+
+    /* Bottom right controls stacked vertically */
+    #bottomRightControls {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 10;
+      padding: 10px 12px;
+      box-sizing: border-box;
+      border-radius: var(--panel-radius);
+      border: 1px solid var(--panel-border);
+      background: var(--panel-bg);
+      box-shadow: var(--panel-shadow);
+    }
+
+    /* Buttons inside bottom right controls */
+    #bottomRightControls > button {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+      min-width: 155px;
+      justify-content: center;
+      border-radius: 999px;
+      font-size: 0.92em;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Top-right timer size control */
+    #topRightControls {
+      position: absolute;
+      top: 18px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+      padding: 10px 12px;
+      box-sizing: border-box;
+      border-radius: var(--panel-radius);
+      border: 1px solid var(--panel-border);
+      background: var(--panel-bg);
+      box-shadow: var(--panel-shadow);
+    }
+
+    #topRightControls label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9em;
+      opacity: 0.9;
+    }
+    #topRightControls input[type="range"] {
+      vertical-align: middle;
+      position: relative;
+      top: 1px;
+      accent-color: var(--accent);
+      width: 140px;
+    }
+
+    /* Square toggle button styling for checkboxes */
+    .toggleBtn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--button-bg);
+      color: var(--fg);
+      cursor: pointer;
+      min-width: var(--action-w);
+      height: var(--action-h);
+      box-sizing: border-box;
+      justify-content: center;
+      border: 1px solid var(--button-border);
+      font-size: 0.9em;
+      transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+    }
+
+    .toggleBtn:hover {
+      background: var(--button-bg-hover);
+      transform: translateY(-0.5px);
+    }
+
+    .toggleBtn input[type="checkbox"] {
+      appearance: none;
+      width: 1.4em;
+      height: 1.4em;
+      border: 2px solid var(--button-border-strong);
+      border-radius: 4px;
+      display: inline-block;
+      position: relative;
+      background: transparent;
+      margin: 0;
+      flex-shrink: 0;
+    }
+
+    .toggleBtn input[type="checkbox"]:checked {
+      background: #ffffff;
+      border-color: var(--button-border-strong);
+    }
+
+    .toggleBtn input[type="checkbox"]:checked::after {
+      content: '✓';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -55%);
+      font-size: 1.15em;
+      color: #111827;
+      font-weight: 700;
+    }
+
+    /* "Active" visual state for Minimal mode toggle */
+    .toggleBtn.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.1), 0 12px 25px rgba(0,0,0,0.4);
+    }
+
+    /* Form inputs, buttons, selects and labels styling */
+    input, button, select, label {
+      font-size: 1em;
+      font-family: inherit;
+    }
+
+    input[type="text"], select {
+      padding: 8px 12px;
+      background: var(--input-bg);
+      color: var(--fg);
+      border: 1px solid var(--input-border);
+      border-radius: 999px;
+      outline: none;
+      transition: border-color 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
+    }
+
+    input[type="text"]:focus, select:focus {
+      border-color: var(--input-border-focus);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.02);
+    }
+    body.light input[type="text"]:focus, body.light select:focus {
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.25);
+    }
+
+    button {
+      padding: 7px 14px;
+      background: var(--button-bg);
+      color: var(--fg);
+      border: 1px solid var(--button-border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+    }
+
+    button:hover {
+      background: var(--button-bg-hover);
+      transform: translateY(-0.5px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    }
+
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    /* Warning threshold select width */
+    #redThreshold {
+      width: auto;
+      min-width: 110px;
+      white-space: nowrap;
+      background: var(--input-bg);
+      color: var(--fg);
+      border-color: var(--input-border);
+    }
+
+    /* Ensure dropdown options are legible in both modes */
+    #redThreshold option {
+      background: #020617;
+      color: #f9fafb;
+    }
+    body.light #redThreshold option {
+      background: #ffffff;
+      color: #111827;
+    }
+
+    /* Warning label text smaller */
+    #warningLabel {
+      font-size: 0.9em;
+      opacity: 0.95;
+    }
+
+    #warningLabel select {
+      font-size: 0.9em;
+      padding: 6px 10px;
+      background: var(--input-bg);
+      color: var(--fg);
+    }
+
+    /* Paused text displayed bottom center */
+    #pausedText {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.4vw;
+      color: var(--accent);
+      font-weight: 700;
+      user-select: none;
+      z-index: 30;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-shadow: 0 0 18px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Mobile-ish adjustments */
+    @media (max-width: 900px) {
+      #controls {
+        top: 14px;
+        font-size: 2.6vw;
+      }
+      #topRightControls {
+        top: auto;
+        bottom: 180px;
+      }
+      #shortcutIndex {
+        display: none;
+      }
+      #queueContainer {
+        right: 10px;
+        width: 250px;
+      }
+      #startContainer {
+        bottom: 26px;
+      }
+    }
+    #timeInput {
+  height: 40px;               /* same as other controls */
+  line-height: 40px;          /* THIS vertically centers placeholder + text */
+  padding-top: 0;
+  padding-bottom: 0;
+}
+#timeInput::placeholder {
+  line-height: normal;        /* ensures proper alignment in all browsers */
+}
+input[type="text"],
+select {
+  height: 40px;
+  line-height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+/* Global control sizing for touch devices */
+button,
+input[type="text"],
+select,
+.toggleBtn {
+  min-height: 44px;
+  font-size: 1rem; /* bump up a bit on iPad */
+}
+
+/* Specifically for the main controls row */
+#controls {
+  row-gap: 10px;
+}
+
+/* Make Start button and toggles a bit taller */
+#startBtn {
+  min-height: 52px;
+}
+
+.toggleBtn {
+  min-height: 46px;
+}
+@media (max-width: 1024px) {
+  /* Controls: full-width bar at top */
+  #controls {
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 94vw;
+    flex-direction: column;
+    align-items: stretch;
+    font-size: 0.95rem;
+  }
+
+  #controls > input[type="text"],
+  #controls #warningLabel,
+  #controls > div { /* the presets wrapper */
+    width: 100%;
+  }
+
+  #presetTimes {
+    justify-content: space-between;
+  }
+
+  /* Put queue below timer instead of on the right */
+  #queueContainer {
+    position: static;
+    transform: none;
+    width: 94vw;
+    margin-top: 10px;
+  }
+
+  /* Keep it near bottom visually */
+  body {
+    justify-content: flex-start;
+    padding-top: 80px; /* space for controls */
+  }
+
+  /* Start container closer to bottom but centered */
+  #startContainer {
+    bottom: 24px;
+    width: 94vw;
+  }
+
+  #startToggles {
+    gap: 8px;
+  }
+
+  .toggleBtn {
+    min-width: calc(50% - 8px);
+  }
+
+  /* Hide the shortcut legend on iPad – no keyboard usually */
+  #shortcutIndex {
+    display: none;
+  }
+}
+
+  </style>
+</head>
+<body class="dark">
+  <button id="resetDefaultsBtn" title="Restore default settings">Reset Defaults</button>
+
+  <!-- Controls container with input and preset buttons -->
+  <div id="controls">
+    <input type="text" id="timeInput" placeholder="mm:ss or seconds" autocomplete="off" />
+
+    <label id="warningLabel" for="redThreshold" style="display: flex; align-items: center; gap: 6px; font-weight: normal; user-select:none;">
+      Warning:
+      <select id="redThreshold" aria-label="Warning" style="font-weight: normal;">
+        <option value="0" selected>None</option>
+        <option value="15">15 seconds</option>
+        <option value="30">30 seconds</option>
+        <option value="60">1 minute</option>
+        <option value="120">2 mins</option>
+        <option value="300">5 mins</option>
+        <option value="600">10 mins</option>
+      </select>
+    </label>
+
+    <!-- Preset time buttons for quick set -->
+    <div style="display: flex; flex-direction: column; align-items: center;">
+      <div id="presetLabel">Presets</div>
+      <div id="presetTimes">
+        <button data-time="60">1:00</button>
+        <button data-time="180">3:00</button>
+        <button data-time="300">5:00</button>
+        <button data-time="600">10:00</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timer queue manager -->
+  <div id="queueContainer" class="hidden">
+    <h3>Timer Queue</h3>
+    <div id="queueForm">
+      <input type="text" id="queueTimeInput" placeholder="mm:ss or seconds" autocomplete="off" />
+      <button id="queueAddBtn">Add</button>
+    </div>
+    <ul id="queueList"></ul>
+    <div id="queueActions">
+      <button id="startQueueBtn" disabled>Start Queue</button>
+      <div id="queueSecondary">
+        <button id="clearQueueBtn">Clear Queue</button>
+        <label id="autoNextGroup"><input type="checkbox" id="autoNextToggle" /> Auto Next</label>
+      </div>
+    </div>
+  </div>
+
+  <div id="startContainer">
+    <button id="startBtn">Start</button>
+    <div id="startToggles">
+      <label class="toggleBtn" for="showProgress"><input type="checkbox" id="showProgress" /> Progress Bar</label>
+      <label class="toggleBtn"><input type="checkbox" id="countUpToggle" /> Count Up</label>
+      <label class="toggleBtn"><input type="checkbox" id="autostartToggle" /> Autostart</label>
+      <label class="toggleBtn"><input type="checkbox" id="queueToggle" /> Queue</label>
+    </div>
+  </div>
+
+  <!-- Bottom left color pickers -->
+  <div id="colorGrid">
+    <label for="bgColor">Background <input type="color" id="bgColor" /></label>
+    <label for="fgColor">Text <input type="color" id="fgColor" /></label>
+    <label id="progressColorGroup" for="accentColor">Progress <input type="color" id="accentColor" /></label>
+    <label for="warningColor">Warning <input type="color" id="warningColor" /></label>
+    <label id="chromaColorGroup" for="chromaColor" style="display:none">Chroma <input type="color" id="chromaColor" value="#00FF00" /></label>
+  </div>
+
+  <!-- Bottom right controls -->
+  <div id="bottomRightControls">
+    <button id="modeToggle">Light Mode</button>
+    <button id="chromaModeToggle">Chroma Mode</button>
+    <button id="minimalModeToggle">Minimal Mode</button>
+  </div>
+
+  <button id="nextTimerButton" class="hidden">Next</button>
+
+  <!-- Top right timer size slider -->
+  <div id="topRightControls">
+    <label for="timerSizeSlider">Timer Size <input type="range" id="timerSizeSlider" min="3" max="40" value="20" /></label>
+  </div>
+
+  <!-- Timer display -->
+  <div id="timer" class="white">00:00</div>
+
+  <!-- Progress bar container and bar -->
+  <div id="progressContainer">
+    <div id="progressBar"></div>
+  </div>
+
+  <!-- Keyboard shortcut legend -->
+  <div id="shortcutIndex">
+    R – Reset Timer<br />
+    Esc – Stop<br />
+    Enter – Start<br />
+    Space – Pause/Resume<br />
+    0–9 – Type Time<br />
+    L – Light/Dark Mode<br />
+    M – Minimal Mode<br />
+    C – Count Up/Down<br />
+    P – Toggle Progress Bar<br />
+    A – Toggle Autostart<br />
+    Q - Toggle Queue
+  </div>
+
+  <!-- Paused text overlay -->
+  <div id="pausedText" class="hidden">Paused</div>
+
+  <script>
+    // Cache references to frequently used DOM elements for performance and clarity
+    const timerEl = document.getElementById('timer');
+    const timerSizeSlider = document.getElementById('timerSizeSlider');
+    const bgColor = document.getElementById('bgColor');
+    const fgColor = document.getElementById('fgColor');
+    const accentColor = document.getElementById('accentColor');
+    const warningColor = document.getElementById('warningColor');
+    const chromaColor = document.getElementById('chromaColor');
+    const progressColorGroup = document.getElementById('progressColorGroup');
+    const chromaColorGroup = document.getElementById('chromaColorGroup');
+    const startBtn = document.getElementById('startBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const timeInput = document.getElementById('timeInput');
+    const redThresholdSelect = document.getElementById('redThreshold');
+    const showProgressCheckbox = document.getElementById('showProgress');
+    const body = document.body;
+    const controls = document.getElementById('controls');
+    const shortcutIndex = document.getElementById('shortcutIndex');
+    const startContainer = document.getElementById('startContainer');
+    const minimalModeToggle = document.getElementById('minimalModeToggle');
+    const modeToggle = document.getElementById('modeToggle');
+    const chromaModeToggle = document.getElementById('chromaModeToggle');
+    const colorGrid = document.getElementById('colorGrid');
+    const bottomRightControls = document.getElementById('bottomRightControls');
+    const topRightControls = document.getElementById('topRightControls');
+    const pausedText = document.getElementById('pausedText');
+    const autostartToggle = document.getElementById('autostartToggle');
+    const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
+    const countUpToggle = document.getElementById('countUpToggle');
+    const queueContainer = document.getElementById('queueContainer');
+    const queueList = document.getElementById('queueList');
+    const queueTimeInput = document.getElementById('queueTimeInput');
+    const queueAddBtn = document.getElementById('queueAddBtn');
+    const autoNextToggle = document.getElementById('autoNextToggle');
+    const clearQueueBtn = document.getElementById('clearQueueBtn');
+    const queueToggle = document.getElementById('queueToggle');
+    const startQueueBtn = document.getElementById('startQueueBtn');
+    const nextTimerButton = document.getElementById('nextTimerButton');
+
+    // Core timer state variables
+    let duration = 0;
+    let timeRemaining = 0;
+    let elapsed = 0;
+    let countUp = false;
+    let running = false;
+    let paused = false;
+    let timerInterval;
+    let freshInput = true;
+    let timerQueue = [];
+    let queueActive = false;
+    let currentQueueDuration = null;
+    let queueAwaitingNext = false;
+    let autoNextEnabled = false;
+    autoNextEnabled = autoNextToggle ? autoNextToggle.checked : false;
+
+    function syncProgressUI() {
+      if (countUpToggle && countUpToggle.checked) {
+        showProgressCheckbox.checked = false;
+        showProgressCheckbox.disabled = true;
+        progressContainer.style.display = 'none';
+        if (typeof progressColorGroup !== 'undefined' && progressColorGroup) {
+          progressColorGroup.style.display = 'none';
+        }
+        return;
+      }
+
+      if (minimalModeToggle.classList.contains('active')) {
+        showProgressCheckbox.checked = true;
+        showProgressCheckbox.disabled = true;
+        progressContainer.style.display = 'block';
+        if (typeof progressColorGroup !== 'undefined' && progressColorGroup) {
+          progressColorGroup.style.display = 'flex';
+        }
+      } else {
+        showProgressCheckbox.disabled = false;
+        progressContainer.style.display = showProgressCheckbox.checked ? 'block' : 'none';
+        if (typeof progressColorGroup !== 'undefined' && progressColorGroup) {
+          progressColorGroup.style.display = showProgressCheckbox.checked ? 'flex' : 'none';
+        }
+      }
+    }
+
+    function parseTimeInput(value) {
+      const parts = value.split(':');
+      if (parts.length === 2) {
+        const minutes = parseInt(parts[0], 10);
+        const seconds = parseInt(parts[1], 10);
+        if (!isNaN(minutes) && !isNaN(seconds)) {
+          return minutes * 60 + seconds;
+        }
+      }
+      const num = parseInt(value, 10);
+      return isNaN(num) ? 0 : num;
+    }
+
+    function formatTime(seconds) {
+      const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+      const s = String(seconds % 60).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function renderQueue() {
+      if (!queueList) return;
+      queueList.innerHTML = '';
+      if (timerQueue.length === 0) {
+        const emptyState = document.createElement('li');
+        emptyState.className = 'queueEmpty';
+        emptyState.textContent = 'No timers queued';
+        queueList.appendChild(emptyState);
+      } else {
+        timerQueue.forEach((seconds, index) => {
+          const item = document.createElement('li');
+          item.className = 'queueItem';
+          const label = document.createElement('span');
+          label.textContent = formatTime(seconds);
+          item.appendChild(label);
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'queueRemoveBtn';
+          removeBtn.textContent = 'Remove';
+          removeBtn.addEventListener('click', () => {
+            timerQueue.splice(index, 1);
+            renderQueue();
+          });
+          item.appendChild(removeBtn);
+          queueList.appendChild(item);
+        });
+      }
+      if (startQueueBtn) {
+        startQueueBtn.disabled = timerQueue.length === 0 || running;
+      }
+      if (clearQueueBtn) {
+        clearQueueBtn.disabled = timerQueue.length === 0;
+      }
+      updateQueueVisibility();
+    }
+
+    function addTimeToQueueFromInput() {
+      if (!queueTimeInput) return;
+      const raw = queueTimeInput.value.trim();
+      const seconds = parseTimeInput(raw);
+      if (seconds <= 0) return;
+      timerQueue.push(seconds);
+      queueTimeInput.value = '';
+      renderQueue();
+    }
+
+    function beginQueueTimer() {
+      if (running || timerQueue.length === 0) return;
+      const nextDuration = timerQueue.shift();
+      currentQueueDuration = nextDuration;
+      queueActive = true;
+      renderQueue();
+      startTimer(nextDuration, { fromQueue: true });
+    }
+
+    function updateQueueVisibility() {
+      if (!queueContainer) return;
+      const enabledByToggle = queueToggle ? queueToggle.checked : true;
+      const shouldHide = running || queueActive || queueAwaitingNext || !enabledByToggle;
+      queueContainer.classList.toggle('hidden', shouldHide);
+    }
+
+    async function enterFullscreen() {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        await elem.requestFullscreen();
+      } else if (elem.webkitRequestFullscreen) {
+        await elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        await elem.msRequestFullscreen();
+      }
+    }
+
+    async function exitFullscreen() {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          await document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+          await document.msExitFullscreen();
+        }
+      }
+    }
+
+    function updateDisplay() {
+      const displaySeconds = countUp ? elapsed : timeRemaining;
+      timerEl.textContent = formatTime(displaySeconds);
+      timerEl.setAttribute('data-text', timerEl.textContent);
+
+      const warningThreshold = parseInt(redThresholdSelect.value, 10);
+      if (!countUp) {
+        if (warningThreshold > 0 && timeRemaining <= warningThreshold) {
+          timerEl.classList.add('warning');
+          timerEl.classList.remove('white');
+        } else {
+          timerEl.classList.add('white');
+          timerEl.classList.remove('warning');
+        }
+      } else {
+        if (duration > 0 && warningThreshold > 0) {
+          const remaining = Math.max(0, duration - elapsed);
+          if (remaining <= warningThreshold) {
+            timerEl.classList.add('warning');
+            timerEl.classList.remove('white');
+          } else {
+            timerEl.classList.add('white');
+            timerEl.classList.remove('warning');
+          }
+        } else {
+          timerEl.classList.add('white');
+          timerEl.classList.remove('warning');
+        }
+      }
+
+      if (duration > 0) {
+        const rawPercent = countUp ? (elapsed / duration) * 100 : (timeRemaining / duration) * 100;
+        const percent = Math.max(0, Math.min(100, rawPercent));
+        progressBar.style.width = percent + '%';
+      }
+    }
+
+    function tick() {
+      if (!paused) {
+        if (countUp) {
+          elapsed++;
+          updateDisplay();
+        } else if (timeRemaining > 0) {
+          timeRemaining--;
+          updateDisplay();
+          if (timeRemaining === 0) {
+            clearInterval(timerInterval);
+            running = false;
+            paused = false;
+            currentQueueDuration = null;
+            updateDisplay();
+            body.classList.remove('hide-cursor');
+            if (queueActive) {
+              queueActive = false;
+              if (timerQueue.length > 0) {
+                if (autoNextEnabled) {
+                  if (nextTimerButton) {
+                    nextTimerButton.classList.add('hidden');
+                  }
+                  beginQueueTimer();
+                } else {
+                  queueAwaitingNext = true;
+                  if (nextTimerButton) {
+                    nextTimerButton.classList.remove('hidden');
+                  }
+                }
+              } else {
+                queueAwaitingNext = false;
+                if (queueToggle) {
+                  queueToggle.checked = false;
+                }
+                if (nextTimerButton) {
+                  nextTimerButton.classList.add('hidden');
+                }
+              }
+            } else {
+              queueAwaitingNext = false;
+              if (nextTimerButton) {
+                nextTimerButton.classList.add('hidden');
+              }
+            }
+            renderQueue();
+            updateQueueVisibility();
+          }
+        }
+      }
+    }
+
+    async function startTimer(forcedDuration = null, options = {}) {
+      if (running) return;
+
+      const fromQueue = !!(options && options.fromQueue);
+      let targetDuration;
+
+      if (forcedDuration !== null && !Number.isNaN(forcedDuration)) {
+        targetDuration = forcedDuration;
+        countUp = false;
+        if (countUpToggle && countUpToggle.checked) {
+          countUpToggle.checked = false;
+          syncProgressUI();
+        }
+      } else {
+        countUp = countUpToggle ? !!countUpToggle.checked : false;
+        targetDuration = parseTimeInput(timeInput.value.trim());
+      }
+
+      if (!countUp && targetDuration <= 0) return;
+
+      duration = targetDuration;
+      timeRemaining = duration;
+      elapsed = 0;
+      running = true;
+      paused = !autostartToggle.checked;
+      freshInput = false;
+      updateQueueVisibility();
+
+      if (!fromQueue) {
+        queueActive = false;
+        currentQueueDuration = null;
+      }
+
+      if (forcedDuration !== null && !countUp && timeInput) {
+        timeInput.value = formatTime(duration);
+      }
+
+      controls.classList.add('hidden');
+      startContainer.classList.add('hidden');
+      shortcutIndex.classList.add('hidden');
+      colorGrid.classList.add('hidden');
+      bottomRightControls.classList.add('hidden');
+      topRightControls.classList.add('hidden');
+      resetDefaultsBtn.classList.add('hidden');
+      if (nextTimerButton) {
+        nextTimerButton.classList.add('hidden');
+      }
+      pausedText.classList.toggle('hidden', !paused);
+      body.classList.add('hide-cursor');
+
+      updateDisplay();
+      await enterFullscreen();
+
+      timerInterval = setInterval(tick, 1000);
+      renderQueue();
+    }
+
+    async function stopTimer() {
+      const uiHidden = body.classList.contains('hide-cursor') || controls.classList.contains('hidden');
+      if (!running && !paused && !queueActive && !uiHidden) return;
+
+      const wasQueueActive = queueActive;
+      const pendingDuration = currentQueueDuration;
+
+      clearInterval(timerInterval);
+      running = false;
+      paused = false;
+      timeRemaining = 0;
+      elapsed = 0;
+      timerEl.textContent = "00:00";
+      timerEl.setAttribute('data-text', timerEl.textContent);
+      progressBar.style.width = '0%';
+
+      if (wasQueueActive && pendingDuration !== null) {
+        timerQueue.unshift(pendingDuration);
+      }
+      queueActive = false;
+      queueAwaitingNext = false;
+      if (queueToggle && timerQueue.length === 0) {
+        queueToggle.checked = false;
+      }
+      currentQueueDuration = null;
+      updateQueueVisibility();
+
+      controls.classList.remove('hidden');
+      startContainer.classList.remove('hidden');
+      shortcutIndex.classList.remove('hidden');
+      colorGrid.classList.remove('hidden');
+      bottomRightControls.classList.remove('hidden');
+      topRightControls.classList.remove('hidden');
+      resetDefaultsBtn.classList.remove('hidden');
+      if (nextTimerButton) {
+        nextTimerButton.classList.add('hidden');
+      }
+      pausedText.classList.add('hidden');
+      body.classList.remove('hide-cursor');
+
+      renderQueue();
+      await exitFullscreen();
+
+      freshInput = true;
+    }
+
+    function resetTimer() {
+      if (!running && !paused) return;
+
+      clearInterval(timerInterval);
+      if (countUp) {
+        elapsed = 0;
+      } else {
+        timeRemaining = duration;
+      }
+      paused = !autostartToggle.checked;
+      running = true;
+      updateQueueVisibility();
+
+      controls.classList.add('hidden');
+      startContainer.classList.add('hidden');
+      shortcutIndex.classList.add('hidden');
+      colorGrid.classList.add('hidden');
+      bottomRightControls.classList.add('hidden');
+      topRightControls.classList.add('hidden');
+      resetDefaultsBtn.classList.add('hidden');
+      if (nextTimerButton) {
+        nextTimerButton.classList.add('hidden');
+      }
+      pausedText.classList.toggle('hidden', !paused);
+      body.classList.add('hide-cursor');
+
+      updateDisplay();
+      timerInterval = setInterval(tick, 1000);
+    }
+
+    function togglePause() {
+      if (running) {
+        paused = !paused;
+        pausedText.classList.toggle('hidden', !paused);
+      }
+    }
+
+    if (queueAddBtn) {
+      queueAddBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        addTimeToQueueFromInput();
+      });
+    }
+
+    if (queueTimeInput) {
+      queueTimeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addTimeToQueueFromInput();
+        }
+      });
+    }
+
+    if (clearQueueBtn) {
+      clearQueueBtn.addEventListener('click', () => {
+        timerQueue = [];
+        queueAwaitingNext = false;
+        renderQueue();
+        if (nextTimerButton) {
+          nextTimerButton.classList.add('hidden');
+        }
+        updateQueueVisibility();
+      });
+    }
+
+    if (autoNextToggle) {
+      autoNextEnabled = autoNextToggle.checked;
+      autoNextToggle.addEventListener('change', () => {
+        autoNextEnabled = autoNextToggle.checked;
+      });
+    }
+
+    if (startQueueBtn) {
+      startQueueBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        beginQueueTimer();
+      });
+    }
+
+    if (nextTimerButton) {
+      nextTimerButton.addEventListener('click', () => {
+        nextTimerButton.classList.add('hidden');
+        beginQueueTimer();
+      });
+    }
+
+    if (queueToggle) {
+      queueToggle.addEventListener('change', () => {
+        updateQueueVisibility();
+      });
+    }
+
+    renderQueue();
+
+    startBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      startTimer();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && (running || queueActive || controls.classList.contains('hidden') || body.classList.contains('hide-cursor'))) {
+        stopTimer();
+      }
+
+      if (e.key === 'Enter' && !running) {
+        startTimer();
+        e.preventDefault();
+      }
+
+      if (e.key === ' ' && running) {
+        togglePause();
+        e.preventDefault();
+      }
+
+      if (e.key.toLowerCase() === 'r' && (running || paused)) {
+        resetTimer();
+        e.preventDefault();
+      }
+
+      if (e.key.toLowerCase() === 'l') {
+        modeToggle.click();
+        e.preventDefault();
+      }
+
+      if (e.key.toLowerCase() === 'm') {
+        minimalModeToggle.click();
+        e.preventDefault();
+      }
+
+      if (e.key.toLowerCase() === 'c' && countUpToggle) {
+        countUpToggle.checked = !countUpToggle.checked;
+        countUpToggle.dispatchEvent(new Event('change'));
+        e.preventDefault();
+      }
+
+      if (e.key.toLowerCase() === 'p') {
+        if (!minimalModeToggle.classList.contains('active')) {
+          showProgressCheckbox.checked = !showProgressCheckbox.checked;
+          showProgressCheckbox.dispatchEvent(new Event('change'));
+        }
+        e.preventDefault();
+      }
+
+      if (e.key.toLowerCase() === 'a') {
+        autostartToggle.checked = !autostartToggle.checked;
+        e.preventDefault();
+      }
+
+      if (e.key.toLowerCase() === 'q' && queueToggle) {
+        queueToggle.checked = !queueToggle.checked;
+        updateQueueVisibility();
+        e.preventDefault();
+      }
+
+      if (
+        !running &&
+        /^\d$/.test(e.key) &&
+        document.activeElement !== timeInput &&
+        document.activeElement !== redThresholdSelect &&
+        document.activeElement !== queueTimeInput
+      ) {
+        e.preventDefault();
+        if (freshInput) {
+          timeInput.value = e.key;
+          freshInput = false;
+        } else {
+          timeInput.value += e.key;
+        }
+        timeInput.focus();
+      }
+    });
+
+    timerSizeSlider.addEventListener('input', () => {
+      const vw = timerSizeSlider.value;
+      timerEl.style.fontSize = vw + 'vw';
+      const heightVw = (parseFloat(vw) / 30) * 1.5;
+      progressContainer.style.height = `${heightVw}vw`;
+      progressContainer.style.width = `${parseFloat(vw) * 3}vw`;
+    });
+
+    bgColor.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--bg', bgColor.value);
+    });
+
+    fgColor.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--fg', fgColor.value);
+    });
+
+    accentColor.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--accent', accentColor.value);
+    });
+
+    warningColor.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--warning', warningColor.value);
+    });
+
+    chromaColor.addEventListener('input', () => {
+      document.documentElement.style.setProperty('--chroma', chromaColor.value);
+    });
+
+    const initVw = timerSizeSlider.value;
+    timerEl.style.fontSize = initVw + 'vw';
+    timerEl.setAttribute('data-text', timerEl.textContent);
+    progressContainer.style.height = ((parseFloat(initVw) / 30) * 1.5) + 'vw';
+    progressContainer.style.width = (parseFloat(initVw) * 3) + 'vw';
+
+    warningColor.value = getComputedStyle(document.documentElement).getPropertyValue('--warning').trim();
+    chromaColor.value = (getComputedStyle(document.documentElement).getPropertyValue('--chroma').trim() || '#00FF00');
+
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) {
+        if (running || paused || body.classList.contains('hide-cursor') || queueActive || controls.classList.contains('hidden')) {
+          stopTimer();
+        }
+      }
+    });
+
+    minimalModeToggle.addEventListener('click', () => {
+      timerEl.classList.toggle('hidden');
+      minimalModeToggle.classList.toggle('active');
+      syncProgressUI();
+    });
+
+    modeToggle.addEventListener('click', () => {
+      body.classList.toggle('light');
+      if (body.classList.contains('light')) {
+        modeToggle.textContent = 'Dark Mode';
+      } else {
+        modeToggle.textContent = 'Light Mode';
+      }
+    });
+
+    chromaModeToggle.addEventListener('click', () => {
+      body.classList.toggle('chroma');
+      if (body.classList.contains('chroma')) {
+        chromaModeToggle.textContent = 'Chroma Off';
+        chromaColor.value = (getComputedStyle(document.documentElement).getPropertyValue('--chroma').trim() || '#00FF00');
+        chromaColorGroup.style.display = 'flex';
+      } else {
+        chromaModeToggle.textContent = 'Chroma Mode';
+        chromaColorGroup.style.display = 'none';
+      }
+    });
+
+    document.querySelectorAll('#presetTimes button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        timeInput.value = formatTime(parseInt(btn.dataset.time));
+      });
+    });
+
+    progressContainer.style.display = showProgressCheckbox.checked ? 'block' : 'none';
+    progressColorGroup.style.display = showProgressCheckbox.checked ? 'flex' : 'none';
+    chromaColorGroup.style.display = body.classList.contains('chroma') ? 'flex' : 'none';
+    syncProgressUI();
+
+    showProgressCheckbox.addEventListener('change', () => {
+      if (minimalModeToggle.classList.contains('active') || (countUpToggle && countUpToggle.checked)) {
+        syncProgressUI();
+        return;
+      }
+      progressContainer.style.display = showProgressCheckbox.checked ? 'block' : 'none';
+      progressColorGroup.style.display = showProgressCheckbox.checked ? 'flex' : 'none';
+    });
+
+    if (countUpToggle) {
+      countUpToggle.addEventListener('change', () => {
+        syncProgressUI();
+      });
+    }
+
+    resetDefaultsBtn.addEventListener('click', async () => {
+      if (running) await stopTimer();
+
+      body.classList.remove('light', 'chroma', 'hide-cursor');
+      timerEl.classList.remove('warning');
+      timerEl.classList.add('white');
+      minimalModeToggle.classList.remove('active');
+
+      timeInput.value = '';
+      redThresholdSelect.value = '0';
+      autostartToggle.checked = false;
+      countUpToggle.checked = false;
+      showProgressCheckbox.checked = false;
+      showProgressCheckbox.disabled = false;
+      syncProgressUI();
+
+      document.documentElement.style.setProperty('--bg', 'black');
+      document.documentElement.style.setProperty('--fg', 'white');
+      document.documentElement.style.setProperty('--accent', '#ff4b4b');
+      document.documentElement.style.setProperty('--warning', 'red');
+      document.documentElement.style.setProperty('--chroma', '#00FF00');
+      bgColor.value = '#000000';
+      fgColor.value = '#ffffff';
+      accentColor.value = '#ff4b4b';
+      warningColor.value = '#ff0000';
+
+      timerSizeSlider.value = '15';
+      const vw = timerSizeSlider.value;
+      timerEl.style.fontSize = vw + 'vw';
+      const heightVw = (parseFloat(vw) / 30) * 1.5;
+      progressContainer.style.height = `${heightVw}vw`;
+      progressContainer.style.width = `${parseFloat(vw) * 3}vw`;
+
+      timerEl.textContent = '00:00';
+      timerEl.setAttribute('data-text', timerEl.textContent);
+      progressBar.style.width = '0%';
+      pausedText.classList.add('hidden');
+      controls.classList.remove('hidden');
+      startContainer.classList.remove('hidden');
+      shortcutIndex.classList.remove('hidden');
+      colorGrid.classList.remove('hidden');
+      bottomRightControls.classList.remove('hidden');
+      topRightControls.classList.remove('hidden');
+      resetDefaultsBtn.classList.remove('hidden');
+      timerQueue = [];
+      queueActive = false;
+      currentQueueDuration = null;
+      if (queueToggle) {
+        queueToggle.checked = false;
+      }
+      if (autoNextToggle) {
+        autoNextToggle.checked = false;
+      }
+      autoNextEnabled = false;
+      queueAwaitingNext = false;
+      updateQueueVisibility();
+      if (nextTimerButton) {
+        nextTimerButton.classList.add('hidden');
+      }
+      renderQueue();
+      modeToggle.textContent = 'Light Mode';
+      chromaModeToggle.textContent = 'Chroma Mode';
+    });
+  </script>
+</body>
+</html>
