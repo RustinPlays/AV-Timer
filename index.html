@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
   <meta charset="UTF-8" />
   <title>Fullscreen Timer</title>
   <style>
@@ -96,18 +100,23 @@
 
     /* Fullscreen body and html setup */
     html, body {
-      margin: 0; padding: 0;
-      height: 100%; width: 100%;
-      background: radial-gradient(circle at top, #111827 0%, #020617 40%, var(--bg) 100%);
-      color: var(--fg);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      user-select: none; /* Disable text selection */
-      overflow: hidden;
-    }
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  min-height: 100%;
+  width: 100%;
+  background-color: var(--bg);  /* solid fallback */
+  background: radial-gradient(circle at top, #111827 0%, #020617 40%, var(--bg) 100%);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  user-select: none;
+  overflow: hidden;
+}
+
 
     body.chroma {
       background: var(--bg); /* Solid background for chroma */
@@ -1143,15 +1152,27 @@ select,
     }
 
     async function enterFullscreen() {
-      const elem = document.documentElement;
-      if (elem.requestFullscreen) {
-        await elem.requestFullscreen();
-      } else if (elem.webkitRequestFullscreen) {
-        await elem.webkitRequestFullscreen();
-      } else if (elem.msRequestFullscreen) {
-        await elem.msRequestFullscreen();
-      }
-    }
+  const elem = document.documentElement;
+
+  // If fullscreen isn’t supported, just resolve immediately
+  if (!(
+    document.fullscreenEnabled ||
+    document.webkitFullscreenEnabled ||
+    document.msFullscreenEnabled
+  )) {
+    return Promise.resolve();
+  }
+
+  if (elem.requestFullscreen) {
+    return elem.requestFullscreen();
+  } else if (elem.webkitRequestFullscreen) {
+    return elem.webkitRequestFullscreen();
+  } else if (elem.msRequestFullscreen) {
+    return elem.msRequestFullscreen();
+  } else {
+    return Promise.resolve();
+  }
+}
 
     async function exitFullscreen() {
       if (document.fullscreenElement) {
@@ -1304,9 +1325,14 @@ select,
       body.classList.add('hide-cursor');
 
       updateDisplay();
-      await enterFullscreen();
 
-      timerInterval = setInterval(tick, 1000);
+try {
+  await enterFullscreen();  // try fullscreen, but don’t *require* it
+} catch (err) {
+  console.warn('Fullscreen failed (OK on iPad):', err);
+}
+
+timerInterval = setInterval(tick, 1000);
       renderQueue();
     }
 
