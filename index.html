@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 
   <meta charset="UTF-8" />
   <title>Fullscreen Timer</title>
@@ -13,7 +15,7 @@
       --bg: #000000;
       --fg: #f5f5f5;
       --accent: #4bb7ff;
-      --warning: #ff4b4b;
+      --warning: #ff0000;
       --stroke: #000000;
       --outline-w: 0.6vw; /* UI outline thickness (vw) */
       --outline-text: 0.04em; /* Text stroke thickness (scales with font) */
@@ -40,7 +42,7 @@
       --bg: #f6f7fb;
       --fg: #111827;
       --accent: #4bb7ff;
-      --warning: #dc2626;
+      --warning: #ff0000;
       --panel-bg: rgba(255, 255, 255, 0.95);
       --panel-border: rgba(15, 23, 42, 0.06);
       --panel-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
@@ -101,9 +103,10 @@
     html, body {
   margin: 0;
   padding: 0;
-  height: 100%;
-  min-height: 100%;
   width: 100%;
+  height: 100vh;
+  min-height: 100vh;
+  min-height: 100svh; /* fill dynamic viewport on iPad/iOS */
   background-color: var(--bg);  /* solid fallback */
   background: radial-gradient(circle at top, #111827 0%, #020617 40%, var(--bg) 100%);
   color: var(--fg);
@@ -328,6 +331,26 @@
       font-weight: 600;
     }
 
+    /* Floating start/pause toggle when running */
+    #floatingPauseBtn,
+    #floatingCloseBtn {
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      z-index: 65;
+      min-width: 140px;
+      height: calc(var(--action-h) * 0.75);
+      font-size: 0.92em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
     /* Start button container fixed at bottom center */
     #startContainer {
       position: absolute;
@@ -362,7 +385,7 @@
       font-weight: 600;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      background: #166534; /* forest green */
+      background: #06ad00; /* forest green */
       border-color: var(--button-border-strong);
       color: #ffffff;
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
@@ -518,12 +541,18 @@
       -webkit-appearance: none;
       padding: 0;
       border-radius: 50%;
-      width: 32px;
-      height: 32px;
+      width: 33px;
+      height: 33px;
       border: 2px solid rgba(255, 255, 255, 0.4);
       background: transparent;
       cursor: pointer;
       overflow: hidden;
+      box-sizing: border-box; /* keep outer ring and swatch the same diameter */
+      aspect-ratio: 1 / 1;
+    }
+    #colorGrid input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0; /* remove default inset that shrinks the swatch */
+      border-radius: 50%;
     }
     #colorGrid input[type="color"]::-webkit-color-swatch {
       border: none;
@@ -878,7 +907,7 @@ select,
   </style>
 </head>
 <body class="dark">
-  <button id="resetDefaultsBtn" title="Restore default settings">Reset Defaults</button>
+  <button id="resetDefaultsBtn" title="Restore default settings" style="font-weight: bold;"> Reset Defaults</button>
 
   <!-- Controls container with input and preset buttons -->
   <div id="controls">
@@ -953,6 +982,8 @@ select,
   </div>
 
   <button id="nextTimerButton" class="hidden">Next</button>
+  <button id="floatingPauseBtn" class="hidden">Pause</button>
+  <button id="floatingCloseBtn" class="hidden">Close</button>
 
   <!-- Top right timer size slider -->
   <div id="topRightControls">
@@ -1025,6 +1056,8 @@ select,
     const queueToggle = document.getElementById('queueToggle');
     const startQueueBtn = document.getElementById('startQueueBtn');
     const nextTimerButton = document.getElementById('nextTimerButton');
+    const floatingPauseBtn = document.getElementById('floatingPauseBtn');
+    const floatingCloseBtn = document.getElementById('floatingCloseBtn');
 
     // Core timer state variables
     let duration = 0;
@@ -1040,6 +1073,7 @@ select,
     let currentQueueDuration = null;
     let queueAwaitingNext = false;
     let autoNextEnabled = false;
+    let timerFinished = false; // tracks when a timer has naturally completed so the close button can appear
     autoNextEnabled = autoNextToggle ? autoNextToggle.checked : false;
 
     function syncProgressUI() {
@@ -1069,6 +1103,7 @@ select,
       }
     }
 
+    // Accept mm:ss or raw seconds and return total seconds
     function parseTimeInput(value) {
       const parts = value.split(':');
       if (parts.length === 2) {
@@ -1082,12 +1117,14 @@ select,
       return isNaN(num) ? 0 : num;
     }
 
+    // Render total seconds into mm:ss text
     function formatTime(seconds) {
       const m = String(Math.floor(seconds / 60)).padStart(2, '0');
       const s = String(seconds % 60).padStart(2, '0');
       return `${m}:${s}`;
     }
 
+    // Build the visual queue list and enable/disable queue controls
     function renderQueue() {
       if (!queueList) return;
       queueList.innerHTML = '';
@@ -1123,6 +1160,7 @@ select,
       updateQueueVisibility();
     }
 
+    // Parse the queue input and append a timer to the pending list
     function addTimeToQueueFromInput() {
       if (!queueTimeInput) return;
       const raw = queueTimeInput.value.trim();
@@ -1133,6 +1171,7 @@ select,
       renderQueue();
     }
 
+    // Start the next queued timer (used for manual or auto-advance)
     function beginQueueTimer() {
       if (running || timerQueue.length === 0) return;
       const nextDuration = timerQueue.shift();
@@ -1142,6 +1181,7 @@ select,
       startTimer(nextDuration, { fromQueue: true });
     }
 
+    // Show or hide the queue panel based on toggle state and whether timers are active
     function updateQueueVisibility() {
       if (!queueContainer) return;
       const enabledByToggle = queueToggle ? queueToggle.checked : true;
@@ -1149,6 +1189,23 @@ select,
       queueContainer.classList.toggle('hidden', shouldHide);
     }
 
+    // Orchestrate visibility/labels for floating pause/resume and close controls
+    function updateFloatingButtons() {
+      if (floatingPauseBtn) {
+        if (!running) {
+          floatingPauseBtn.classList.add('hidden');
+        } else {
+          floatingPauseBtn.classList.remove('hidden');
+          floatingPauseBtn.textContent = paused ? 'Resume' : 'Pause';
+        }
+      }
+      if (floatingCloseBtn) {
+        const shouldShowClose = timerFinished && !running && !queueActive && !queueAwaitingNext;
+        floatingCloseBtn.classList.toggle('hidden', !shouldShowClose);
+      }
+    }
+
+    // Handle entering fullscreen when supported; best-effort only
     async function enterFullscreen() {
   const elem = document.documentElement;
 
@@ -1184,6 +1241,7 @@ select,
       }
     }
 
+    // Refresh timer text color states and progress bar based on current counters
     function updateDisplay() {
       const displaySeconds = countUp ? elapsed : timeRemaining;
       timerEl.textContent = formatTime(displaySeconds);
@@ -1221,6 +1279,7 @@ select,
       }
     }
 
+    // Heartbeat called every second while running; updates time and handles completion
     function tick() {
       if (!paused) {
         if (countUp) {
@@ -1233,9 +1292,11 @@ select,
             clearInterval(timerInterval);
             running = false;
             paused = false;
+            timerFinished = true; // mark natural completion so close button can show
             currentQueueDuration = null;
             updateDisplay();
             body.classList.remove('hide-cursor');
+            updateFloatingButtons();
             if (queueActive) {
               queueActive = false;
               if (timerQueue.length > 0) {
@@ -1272,6 +1333,7 @@ select,
       }
     }
 
+    // Kick off a timer run, optionally with a forced duration or queue context
     async function startTimer(forcedDuration = null, options = {}) {
       if (running) return;
 
@@ -1297,6 +1359,7 @@ select,
       elapsed = 0;
       running = true;
       paused = !autostartToggle.checked;
+      timerFinished = false; // manual stop should clear completion state
       freshInput = false;
       updateQueueVisibility();
 
@@ -1320,7 +1383,7 @@ select,
         nextTimerButton.classList.add('hidden');
       }
       pausedText.classList.toggle('hidden', !paused);
-      body.classList.add('hide-cursor');
+      updateFloatingButtons();
 
       updateDisplay();
 
@@ -1334,6 +1397,7 @@ timerInterval = setInterval(tick, 1000);
       renderQueue();
     }
 
+    // Fully stop the timer, restore UI, and exit fullscreen if active
     async function stopTimer() {
       const uiHidden = body.classList.contains('hide-cursor') || controls.classList.contains('hidden');
       if (!running && !paused && !queueActive && !uiHidden) return;
@@ -1344,11 +1408,13 @@ timerInterval = setInterval(tick, 1000);
       clearInterval(timerInterval);
       running = false;
       paused = false;
+      timerFinished = false; // new run shouldn't show the close button yet
       timeRemaining = 0;
       elapsed = 0;
       timerEl.textContent = "00:00";
       timerEl.setAttribute('data-text', timerEl.textContent);
       progressBar.style.width = '0%';
+      updateFloatingButtons();
 
       if (wasQueueActive && pendingDuration !== null) {
         timerQueue.unshift(pendingDuration);
@@ -1380,6 +1446,7 @@ timerInterval = setInterval(tick, 1000);
       freshInput = true;
     }
 
+    // Reset the current timer without leaving the running state
     function resetTimer() {
       if (!running && !paused) return;
 
@@ -1391,7 +1458,9 @@ timerInterval = setInterval(tick, 1000);
       }
       paused = !autostartToggle.checked;
       running = true;
+      timerFinished = false; // reset keeps us in-run, so clear finish latch
       updateQueueVisibility();
+      updateFloatingButtons();
 
       controls.classList.add('hidden');
       startContainer.classList.add('hidden');
@@ -1404,19 +1473,21 @@ timerInterval = setInterval(tick, 1000);
         nextTimerButton.classList.add('hidden');
       }
       pausedText.classList.toggle('hidden', !paused);
-      body.classList.add('hide-cursor');
 
       updateDisplay();
       timerInterval = setInterval(tick, 1000);
     }
 
+    // Pause or resume the current timer
     function togglePause() {
       if (running) {
         paused = !paused;
         pausedText.classList.toggle('hidden', !paused);
+        updateFloatingButtons();
       }
     }
 
+    // Queue controls wiring
     if (queueAddBtn) {
       queueAddBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -1474,11 +1545,25 @@ timerInterval = setInterval(tick, 1000);
 
     renderQueue();
 
+    // Primary start button
     startBtn.addEventListener('click', (event) => {
       event.preventDefault();
       startTimer();
     });
 
+    if (floatingPauseBtn) {
+      floatingPauseBtn.addEventListener('click', () => {
+        if (!running) return;
+        togglePause();
+      });
+    }
+    if (floatingCloseBtn) {
+      floatingCloseBtn.addEventListener('click', () => {
+        stopTimer(); // same behavior as pressing Escape
+      });
+    }
+
+    // Keyboard shortcuts for running/stopping/resetting
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && (running || queueActive || controls.classList.contains('hidden') || body.classList.contains('hide-cursor'))) {
         stopTimer();
@@ -1560,6 +1645,7 @@ timerInterval = setInterval(tick, 1000);
       progressContainer.style.width = `${parseFloat(vw) * 3}vw`;
     });
 
+    // Live color binding for background/foreground/accent/warning/chroma
     bgColor.addEventListener('input', () => {
       document.documentElement.style.setProperty('--bg', bgColor.value);
     });
@@ -1589,6 +1675,7 @@ timerInterval = setInterval(tick, 1000);
     warningColor.value = getComputedStyle(document.documentElement).getPropertyValue('--warning').trim();
     chromaColor.value = (getComputedStyle(document.documentElement).getPropertyValue('--chroma').trim() || '#00FF00');
 
+    // If fullscreen is lost unexpectedly, treat it like a stop
     document.addEventListener('fullscreenchange', () => {
       if (!document.fullscreenElement) {
         if (running || paused || body.classList.contains('hide-cursor') || queueActive || controls.classList.contains('hidden')) {
@@ -1603,6 +1690,7 @@ timerInterval = setInterval(tick, 1000);
       syncProgressUI();
     });
 
+    // Theme / mode toggles
     modeToggle.addEventListener('click', () => {
       body.classList.toggle('light');
       if (body.classList.contains('light')) {
@@ -1624,6 +1712,7 @@ timerInterval = setInterval(tick, 1000);
       }
     });
 
+    // Quick preset time buttons
     document.querySelectorAll('#presetTimes button').forEach(btn => {
       btn.addEventListener('click', () => {
         timeInput.value = formatTime(parseInt(btn.dataset.time));
@@ -1652,6 +1741,9 @@ timerInterval = setInterval(tick, 1000);
 
     resetDefaultsBtn.addEventListener('click', async () => {
       if (running) await stopTimer();
+
+      timerFinished = false;
+      updateFloatingButtons();
 
       body.classList.remove('light', 'chroma', 'hide-cursor');
       timerEl.classList.remove('warning');
@@ -1713,33 +1805,6 @@ timerInterval = setInterval(tick, 1000);
       modeToggle.textContent = 'Light Mode';
       chromaModeToggle.textContent = 'Chroma Mode';
     });
-      // Tap anywhere on screen to start / pause
-document.addEventListener('click', (e) => {
-  // Don't trigger if you tapped a button, input, slider, or select element
-  if (e.target.closest('button, input, select, label')) return;
-
-  if (!running) {
-    startTimer();
-  } else {
-    togglePause();
-  }
-});
-// Tap/click on empty background to Start or Pause/Resume (PC + iPad)
-document.addEventListener('pointerdown', (e) => {
-  // Ignore taps on UI controls and panels
-  if (e.target.closest('button, input, select, label, #controls, #startContainer, #queueContainer, #colorGrid, #bottomRightControls, #topRightControls')) {
-    return;
-  }
-
-  // If no timer is running or paused -> try to start
-  if (!running && !paused) {
-    startTimer();
-  } else {
-    // If already running or paused -> toggle pause/resume
-    togglePause();
-  }
-});
-
   </script>
 </body>
 </html>
