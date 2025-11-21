@@ -1296,7 +1296,6 @@ select,
             currentQueueDuration = null;
             updateDisplay();
             body.classList.remove('hide-cursor');
-            updateFloatingButtons();
             if (queueActive) {
               queueActive = false;
               if (timerQueue.length > 0) {
@@ -1328,6 +1327,7 @@ select,
             }
             renderQueue();
             updateQueueVisibility();
+            updateFloatingButtons();
           }
         }
       }
