@@ -426,7 +426,7 @@
     /* Timer display big text centered */
     #timer {
       text-align: center;
-      font-size: 15vw; /* responsive large font size */
+      font-size: 15vmin; /* responsive large font size */
       user-select: none;
       font-weight: 700;
       letter-spacing: 0.02em;
@@ -525,8 +525,8 @@
       border-radius: 999px;
       margin-top: var(--ui-gap-lg);
       overflow: hidden;
-      height: 0.75vw; /* default, JS adjusts */
-      width: 50vw;
+      height: 0.75vmin; /* default, JS adjusts */
+      width: 50vmin;
       user-select: none;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
       border: 1px solid rgba(255, 255, 255, 0.18);
@@ -884,33 +884,47 @@ select,
   min-height: var(--ui-control-h);
 }
 
-    /* Portrait-friendly tweaks for tablets/phones */
-    @media (orientation: portrait) {
-      body {
-        justify-content: flex-start;
-        padding-top: 90px;
-      }
+/* Portrait-friendly tweaks for tablets/phones */
+@media (orientation: portrait) {
+  body {
+    justify-content: flex-start;
+    padding-top: clamp(70px, 12vh, 120px);
+  }
 
-      #controls {
-        width: 96vw;
-        font-size: clamp(14px, 1.2vmin, 18px);
-      }
+  #controls {
+    width: 96vw;
+    flex-direction: column;
+    align-items: stretch;
+    font-size: clamp(14px, 1.5vmin, 18px);
+    row-gap: var(--ui-gap-sm);
+  }
 
-      #queueContainer {
-        position: static;
-        transform: none;
+  #queueContainer {
+    position: static;
+    transform: none;
         width: 96vw;
         margin-top: 12px;
       }
 
-      #startContainer {
-        width: 96vw;
-      }
+  #startContainer {
+    width: 96vw;
+  }
 
-      #progressContainer {
-        width: min(88vmin, 94vw);
-      }
-    }
+  #progressContainer {
+    width: min(88vmin, 94vw);
+  }
+
+  #topRightControls {
+    position: static;
+    width: 96vw;
+    margin-top: var(--ui-gap-sm);
+    justify-content: center;
+  }
+
+  #shortcutIndex {
+    display: none;
+  }
+}
 @media (max-width: 1024px) {
   /* Controls: full-width bar at top */
   #controls {
@@ -1176,13 +1190,14 @@ select,
       document.documentElement.style.setProperty('--ui-font', `${Math.round(16 * scale)}px`);
     }
 
-    // Timer sizing from slider (vw-based, but recalculated on resize)
+    // Timer sizing from slider (vmin-based so portrait/landscape match)
     function setTimerSizeFromSlider() {
-      const vw = parseFloat(timerSizeSlider.value);
-      timerEl.style.fontSize = vw + 'vw';
-      const heightVw = (parseFloat(vw) / 30) * 1.5;
-      progressContainer.style.height = `${heightVw}vw`;
-      progressContainer.style.width = `${parseFloat(vw) * 3}vw`;
+      const vmin = parseFloat(timerSizeSlider.value);
+      timerEl.style.fontSize = vmin + 'vmin';
+      const height = (vmin / 30) * 1.5;
+      progressContainer.style.height = `${height}vmin`;
+      const width = Math.min(vmin * 3, 95);
+      progressContainer.style.width = `${width}vmin`;
       timerEl.setAttribute('data-text', timerEl.textContent);
     }
 
