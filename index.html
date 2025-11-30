@@ -17,7 +17,7 @@
       --accent: #4bb7ff;
       --warning: #ff0000;
       --stroke: #000000;
-      --outline-w: 0.6vw; /* UI outline thickness (vw) */
+      --outline-w: clamp(3px, 0.6vmin, 12px); /* UI outline thickness */
       --outline-text: 0.04em; /* Text stroke thickness (scales with font) */
       --chroma: #00FF00; /* default chroma key color */
       --action-w: 20ch; /* unified width for bottom controls */
@@ -146,7 +146,7 @@
       transform: translateX(-50%);
       display: flex;
       gap: 16px;
-      font-size: 1.05vw;
+      font-size: clamp(14px, 1.05vmin, 18px);
       z-index: 10;
       flex-wrap: wrap;
       justify-content: center;
@@ -414,7 +414,7 @@
     /* Timer display big text centered */
     #timer {
       text-align: center;
-      font-size: 15vw; /* responsive large font size */
+      font-size: 15vmin; /* responsive large font size */
       user-select: none;
       font-weight: 700;
       letter-spacing: 0.02em;
@@ -423,7 +423,7 @@
 
     /* Subtle drop shadow for readability when not in chroma */
     body:not(.chroma) #timer {
-      text-shadow: 0.22vw 0.22vw 0.4vw rgba(0, 0, 0, 0.55);
+      text-shadow: 0.22vmin 0.22vmin 0.4vmin rgba(0, 0, 0, 0.55);
     }
 
     /* Color utility classes */
@@ -479,6 +479,28 @@
       letter-spacing: 0.06em;
     }
 
+    /* Compact close button shown only while timer is running */
+    #runningCloseBtn {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 80;
+      width: 42px;
+      height: 42px;
+      min-width: 42px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      color: var(--fg);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      box-shadow: var(--panel-shadow);
+    }
+
     /* Hide elements utility */
     .hidden {
       display: none !important;
@@ -490,8 +512,8 @@
       border-radius: 999px;
       margin-top: 20px;
       overflow: hidden;
-      height: 0.75vw; /* default, JS adjusts */
-      width: 50vw;
+      height: 0.75vmin; /* default, JS adjusts */
+      width: 50vmin;
       user-select: none;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
       border: 1px solid rgba(255, 255, 255, 0.18);
@@ -848,6 +870,34 @@ select,
 .toggleBtn {
   min-height: 46px;
 }
+
+    /* Portrait-friendly tweaks for tablets/phones */
+    @media (orientation: portrait) {
+      body {
+        justify-content: flex-start;
+        padding-top: 90px;
+      }
+
+      #controls {
+        width: 96vw;
+        font-size: clamp(14px, 1.2vmin, 18px);
+      }
+
+      #queueContainer {
+        position: static;
+        transform: none;
+        width: 96vw;
+        margin-top: 12px;
+      }
+
+      #startContainer {
+        width: 96vw;
+      }
+
+      #progressContainer {
+        width: min(88vmin, 94vw);
+      }
+    }
 @media (max-width: 1024px) {
   /* Controls: full-width bar at top */
   #controls {
@@ -908,6 +958,7 @@ select,
 </head>
 <body class="dark">
   <button id="resetDefaultsBtn" title="Restore default settings" style="font-weight: bold;"> Reset Defaults</button>
+  <button id="runningCloseBtn" class="hidden" aria-label="Stop timer">X</button>
 
   <!-- Controls container with input and preset buttons -->
   <div id="controls">
@@ -1058,6 +1109,7 @@ select,
     const nextTimerButton = document.getElementById('nextTimerButton');
     const floatingPauseBtn = document.getElementById('floatingPauseBtn');
     const floatingCloseBtn = document.getElementById('floatingCloseBtn');
+    const runningCloseBtn = document.getElementById('runningCloseBtn');
 
     // Core timer state variables
     let duration = 0;
@@ -1101,6 +1153,17 @@ select,
           progressColorGroup.style.display = showProgressCheckbox.checked ? 'flex' : 'none';
         }
       }
+    }
+
+    // Apply timer and progress sizing using vmin so it scales in portrait/landscape
+    function applyTimerSizing(value) {
+      const size = parseFloat(value);
+      const safeSize = Number.isFinite(size) ? size : 20;
+      timerEl.style.fontSize = `${safeSize}vmin`;
+      const heightVmin = (safeSize / 30) * 1.5;
+      progressContainer.style.height = `${heightVmin}vmin`;
+      const widthVmin = Math.min(safeSize * 3, 95);
+      progressContainer.style.width = `${widthVmin}vmin`;
     }
 
     // Accept mm:ss or raw seconds and return total seconds
@@ -1194,10 +1257,14 @@ select,
       if (floatingPauseBtn) {
         if (!running) {
           floatingPauseBtn.classList.add('hidden');
-        } else {
-          floatingPauseBtn.classList.remove('hidden');
-          floatingPauseBtn.textContent = paused ? 'Resume' : 'Pause';
-        }
+      } else {
+        floatingPauseBtn.classList.remove('hidden');
+        floatingPauseBtn.textContent = paused ? 'Resume' : 'Pause';
+      }
+    }
+      if (runningCloseBtn) {
+        const showRunningClose = running || paused || queueActive || queueAwaitingNext;
+        runningCloseBtn.classList.toggle('hidden', !showRunningClose);
       }
       if (floatingCloseBtn) {
         const shouldShowClose = timerFinished && !running && !queueActive && !queueAwaitingNext;
@@ -1562,6 +1629,11 @@ timerInterval = setInterval(tick, 1000);
         stopTimer(); // same behavior as pressing Escape
       });
     }
+    if (runningCloseBtn) {
+      runningCloseBtn.addEventListener('click', () => {
+        stopTimer();
+      });
+    }
 
     // Keyboard shortcuts for running/stopping/resetting
     document.addEventListener('keydown', (e) => {
@@ -1638,11 +1710,7 @@ timerInterval = setInterval(tick, 1000);
     });
 
     timerSizeSlider.addEventListener('input', () => {
-      const vw = timerSizeSlider.value;
-      timerEl.style.fontSize = vw + 'vw';
-      const heightVw = (parseFloat(vw) / 30) * 1.5;
-      progressContainer.style.height = `${heightVw}vw`;
-      progressContainer.style.width = `${parseFloat(vw) * 3}vw`;
+      applyTimerSizing(timerSizeSlider.value);
     });
 
     // Live color binding for background/foreground/accent/warning/chroma
@@ -1666,11 +1734,8 @@ timerInterval = setInterval(tick, 1000);
       document.documentElement.style.setProperty('--chroma', chromaColor.value);
     });
 
-    const initVw = timerSizeSlider.value;
-    timerEl.style.fontSize = initVw + 'vw';
+    applyTimerSizing(timerSizeSlider.value);
     timerEl.setAttribute('data-text', timerEl.textContent);
-    progressContainer.style.height = ((parseFloat(initVw) / 30) * 1.5) + 'vw';
-    progressContainer.style.width = (parseFloat(initVw) * 3) + 'vw';
 
     warningColor.value = getComputedStyle(document.documentElement).getPropertyValue('--warning').trim();
     chromaColor.value = (getComputedStyle(document.documentElement).getPropertyValue('--chroma').trim() || '#00FF00');
@@ -1769,11 +1834,7 @@ timerInterval = setInterval(tick, 1000);
       warningColor.value = '#ff0000';
 
       timerSizeSlider.value = '15';
-      const vw = timerSizeSlider.value;
-      timerEl.style.fontSize = vw + 'vw';
-      const heightVw = (parseFloat(vw) / 30) * 1.5;
-      progressContainer.style.height = `${heightVw}vw`;
-      progressContainer.style.width = `${parseFloat(vw) * 3}vw`;
+      applyTimerSizing(timerSizeSlider.value);
 
       timerEl.textContent = '00:00';
       timerEl.setAttribute('data-text', timerEl.textContent);
