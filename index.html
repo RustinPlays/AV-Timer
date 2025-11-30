@@ -23,9 +23,20 @@
       --action-w: 20ch; /* unified width for bottom controls */
       --action-h: calc(1.8em + 18px); /* unified height matches toggle */
 
+      /* Responsive scaling vars */
+      --ui-scale: 1;
+      --ui-font: 16px;
+      --ui-gap-xs: calc(6px * var(--ui-scale));
+      --ui-gap-sm: calc(10px * var(--ui-scale));
+      --ui-gap-md: calc(14px * var(--ui-scale));
+      --ui-gap-lg: calc(18px * var(--ui-scale));
+      --ui-control-h: calc(44px * var(--ui-scale));
+      --ui-start-h: calc(52px * var(--ui-scale));
+      --ui-fab: calc(42px * var(--ui-scale));
+
       --panel-bg: rgba(15, 15, 20, 0.9);
       --panel-border: rgba(255, 255, 255, 0.12);
-      --panel-radius: 14px;
+      --panel-radius: calc(14px * var(--ui-scale));
       --panel-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
 
       --input-bg: rgba(255, 255, 255, 0.04);
@@ -111,6 +122,7 @@
   background: radial-gradient(circle at top, #111827 0%, #020617 40%, var(--bg) 100%);
   color: var(--fg);
   font-family: "Helvetica", Arial, sans-serif;
+  font-size: var(--ui-font);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -141,17 +153,17 @@
     /* Controls container at top center */
     #controls {
       position: absolute;
-      top: 18px;
+      top: var(--ui-gap-md);
       left: 50%;
       transform: translateX(-50%);
       display: flex;
-      gap: 16px;
+      gap: var(--ui-gap-lg);
       font-size: clamp(14px, 1.05vmin, 18px);
       z-index: 10;
       flex-wrap: wrap;
       justify-content: center;
       align-items: center;
-      padding: 12px 18px;
+      padding: var(--ui-gap-md) var(--ui-gap-lg);
       box-sizing: border-box;
       border-radius: var(--panel-radius);
       border: 1px solid var(--panel-border);
@@ -162,11 +174,11 @@
     /* Preset time buttons container styling */
     #presetTimes {
       display: flex;
-      gap: 8px;
+      gap: var(--ui-gap-sm);
       flex-wrap: wrap;
       justify-content: center;
       width: 100%;
-      margin-top: 4px;
+      margin-top: var(--ui-gap-xs);
       user-select: none;
     }
 
@@ -195,14 +207,14 @@
     #queueContainer {
       position: absolute;
       top: 50%;
-      right: 20px;
+      right: var(--ui-gap-lg);
       transform: translateY(-50%);
-      width: 280px;
+      width: clamp(240px, 26vw, 320px);
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: var(--ui-gap-sm);
       z-index: 10;
-      padding: 14px 14px 16px 14px;
+      padding: var(--ui-gap-md);
       box-sizing: border-box;
       border-radius: var(--panel-radius);
       border: 1px solid var(--panel-border);
@@ -221,7 +233,7 @@
 
     #queueForm {
       display: flex;
-      gap: 8px;
+      gap: var(--ui-gap-sm);
     }
 
     #queueForm input[type="text"] {
@@ -235,7 +247,7 @@
       padding: 0;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: var(--ui-gap-xs);
       max-height: 40vh;
       overflow-y: auto;
       scrollbar-width: thin;
@@ -245,7 +257,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: var(--ui-gap-sm);
       border: 1px solid var(--button-border);
       border-radius: 999px;
       padding: 4px 10px 4px 12px;
@@ -280,8 +292,8 @@
     #queueActions {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      margin-top: 8px;
+      gap: var(--ui-gap-sm);
+      margin-top: var(--ui-gap-sm);
     }
 
     #queueActions > button {
@@ -290,7 +302,7 @@
 
     #queueSecondary {
       display: flex;
-      gap: 10px;
+      gap: var(--ui-gap-md);
       align-items: center;
       justify-content: flex-start;
       flex-wrap: wrap;
@@ -304,7 +316,7 @@
     #autoNextGroup {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: var(--ui-gap-sm);
       font-size: 0.85em;
       white-space: nowrap;
       opacity: 0.85;
@@ -354,15 +366,15 @@
     /* Start button container fixed at bottom center */
     #startContainer {
       position: absolute;
-      bottom: 40px;
+      bottom: calc(var(--ui-gap-lg) * 2);
       left: 50%;
       transform: translateX(-50%);
       z-index: 10;
       display: flex;
       flex-direction: column; /* Start button on first row, toggles below */
       align-items: center;
-      gap: 12px;
-      padding: 12px 18px 16px;
+      gap: var(--ui-gap-md);
+      padding: var(--ui-gap-md) var(--ui-gap-lg);
       box-sizing: border-box;
       border-radius: var(--panel-radius);
       border: 1px solid var(--panel-border);
@@ -374,7 +386,7 @@
     #startBtn {
       font-size: 1.05em;
       padding: 0 24px;
-      height: var(--action-h);
+      height: var(--ui-start-h);
       min-width: var(--action-w);
       box-sizing: border-box;
       display: flex;
@@ -407,14 +419,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      gap: var(--ui-gap-md);
       flex-wrap: wrap;
     }
 
     /* Timer display big text centered */
     #timer {
       text-align: center;
-      font-size: 15vmin; /* responsive large font size */
+      font-size: 15vw; /* responsive large font size */
       user-select: none;
       font-weight: 700;
       letter-spacing: 0.02em;
@@ -423,7 +435,7 @@
 
     /* Subtle drop shadow for readability when not in chroma */
     body:not(.chroma) #timer {
-      text-shadow: 0.22vmin 0.22vmin 0.4vmin rgba(0, 0, 0, 0.55);
+      text-shadow: 0.22vw 0.22vw 0.4vw rgba(0, 0, 0, 0.55);
     }
 
     /* Color utility classes */
@@ -468,8 +480,8 @@
     /* Reset Defaults button (top-left) */
     #resetDefaultsBtn {
       position: absolute;
-      top: 10px;
-      left: 10px;
+      top: var(--ui-gap-xs);
+      left: var(--ui-gap-xs);
       z-index: 50;
       font-size: 0.95em;
       padding: 6px 18px;
@@ -482,12 +494,12 @@
     /* Compact close button shown only while timer is running */
     #runningCloseBtn {
       position: fixed;
-      top: 10px;
-      left: 10px;
+      top: var(--ui-gap-xs);
+      left: var(--ui-gap-xs);
       z-index: 80;
-      width: 42px;
-      height: 42px;
-      min-width: 42px;
+      width: var(--ui-fab);
+      height: var(--ui-fab);
+      min-width: var(--ui-fab);
       padding: 0;
       display: flex;
       align-items: center;
@@ -511,10 +523,10 @@
     #progressContainer {
       background: rgba(15, 23, 42, 0.7);
       border-radius: 999px;
-      margin-top: 20px;
+      margin-top: var(--ui-gap-lg);
       overflow: hidden;
-      height: 0.75vmin; /* default, JS adjusts */
-      width: 50vmin;
+      height: 0.75vw; /* default, JS adjusts */
+      width: 50vw;
       user-select: none;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
       border: 1px solid rgba(255, 255, 255, 0.18);
@@ -532,15 +544,15 @@
     /* Bottom left color pickers stacked vertically */
     #colorGrid {
       position: absolute;
-      bottom: 20px;
-      left: 20px;
+      bottom: var(--ui-gap-lg);
+      left: var(--ui-gap-lg);
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: var(--ui-gap-sm);
       align-items: flex-start;
       justify-content: center;
       z-index: 10;
-      padding: 10px 12px;
+      padding: var(--ui-gap-sm) var(--ui-gap-md);
       box-sizing: border-box;
       border-radius: var(--panel-radius);
       border: 1px solid var(--panel-border);
@@ -564,9 +576,9 @@
       -webkit-appearance: none;
       padding: 0;
       border-radius: 50%;
-      width: 33px;
-      height: 33px;
-      border: 2px solid rgba(255, 255, 255, 0.4);
+      width: calc(33px * var(--ui-scale));
+      height: calc(33px * var(--ui-scale));
+      border: calc(2px * var(--ui-scale)) solid rgba(255, 255, 255, 0.4);
       background: transparent;
       cursor: pointer;
       overflow: hidden;
@@ -596,15 +608,15 @@
     /* Bottom right controls stacked vertically */
     #bottomRightControls {
       position: absolute;
-      bottom: 20px;
-      right: 20px;
+      bottom: var(--ui-gap-lg);
+      right: var(--ui-gap-lg);
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: var(--ui-gap-sm);
       align-items: flex-end;
       justify-content: center;
       z-index: 10;
-      padding: 10px 12px;
+      padding: var(--ui-gap-sm) var(--ui-gap-md);
       box-sizing: border-box;
       border-radius: var(--panel-radius);
       border: 1px solid var(--panel-border);
@@ -629,13 +641,13 @@
     /* Top-right timer size control */
     #topRightControls {
       position: absolute;
-      top: 18px;
-      right: 20px;
+      top: var(--ui-gap-md);
+      right: var(--ui-gap-lg);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: var(--ui-gap-md);
       z-index: 10;
-      padding: 10px 12px;
+      padding: var(--ui-gap-sm) var(--ui-gap-md);
       box-sizing: border-box;
       border-radius: var(--panel-radius);
       border: 1px solid var(--panel-border);
@@ -662,8 +674,8 @@
     .toggleBtn {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
+      gap: var(--ui-gap-sm);
+      padding: calc(8px * var(--ui-scale)) calc(12px * var(--ui-scale));
       border-radius: 999px;
       background: var(--button-bg);
       color: var(--fg);
@@ -743,11 +755,11 @@
     }
 
     button {
-      padding: 7px 14px;
+      padding: calc(7px * var(--ui-scale)) calc(14px * var(--ui-scale));
       background: var(--button-bg);
       color: var(--fg);
       border: 1px solid var(--button-border);
-      border-radius: 8px;
+      border-radius: calc(8px * var(--ui-scale));
       cursor: pointer;
       transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
     }
@@ -833,9 +845,9 @@
         bottom: 26px;
       }
     }
-    #timeInput {
-  height: 40px;               /* same as other controls */
-  line-height: 40px;          /* THIS vertically centers placeholder + text */
+#timeInput {
+  height: var(--ui-control-h);               /* same as other controls */
+  line-height: var(--ui-control-h);          /* vertically centers placeholder + text */
   padding-top: 0;
   padding-bottom: 0;
 }
@@ -844,8 +856,8 @@
 }
 input[type="text"],
 select {
-  height: 40px;
-  line-height: 40px;
+  height: var(--ui-control-h);
+  line-height: var(--ui-control-h);
   padding-top: 0;
   padding-bottom: 0;
 }
@@ -854,22 +866,22 @@ button,
 input[type="text"],
 select,
 .toggleBtn {
-  min-height: 44px;
-  font-size: 1rem; /* bump up a bit on iPad */
+  min-height: var(--ui-control-h);
+  font-size: 1rem;
 }
 
 /* Specifically for the main controls row */
 #controls {
-  row-gap: 10px;
+  row-gap: var(--ui-gap-sm);
 }
 
 /* Make Start button and toggles a bit taller */
 #startBtn {
-  min-height: 52px;
+  min-height: var(--ui-start-h);
 }
 
 .toggleBtn {
-  min-height: 46px;
+  min-height: var(--ui-control-h);
 }
 
     /* Portrait-friendly tweaks for tablets/phones */
@@ -1156,15 +1168,22 @@ select,
       }
     }
 
-    // Apply timer and progress sizing using vmin so it scales in portrait/landscape
-    function applyTimerSizing(value) {
-      const size = parseFloat(value);
-      const safeSize = Number.isFinite(size) ? size : 20;
-      timerEl.style.fontSize = `${safeSize}vmin`;
-      const heightVmin = (safeSize / 30) * 1.5;
-      progressContainer.style.height = `${heightVmin}vmin`;
-      const widthVmin = Math.min(safeSize * 3, 95);
-      progressContainer.style.width = `${widthVmin}vmin`;
+    // Compute responsive UI scale based on viewport and expose via CSS variables
+    function setUiScale() {
+      const minSide = Math.min(window.innerWidth, window.innerHeight);
+      const scale = Math.min(1.18, Math.max(0.82, minSide / 1100));
+      document.documentElement.style.setProperty('--ui-scale', scale.toFixed(3));
+      document.documentElement.style.setProperty('--ui-font', `${Math.round(16 * scale)}px`);
+    }
+
+    // Timer sizing from slider (vw-based, but recalculated on resize)
+    function setTimerSizeFromSlider() {
+      const vw = parseFloat(timerSizeSlider.value);
+      timerEl.style.fontSize = vw + 'vw';
+      const heightVw = (parseFloat(vw) / 30) * 1.5;
+      progressContainer.style.height = `${heightVw}vw`;
+      progressContainer.style.width = `${parseFloat(vw) * 3}vw`;
+      timerEl.setAttribute('data-text', timerEl.textContent);
     }
 
     // Accept mm:ss or raw seconds and return total seconds
@@ -1711,7 +1730,7 @@ timerInterval = setInterval(tick, 1000);
     });
 
     timerSizeSlider.addEventListener('input', () => {
-      applyTimerSizing(timerSizeSlider.value);
+      setTimerSizeFromSlider();
     });
 
     // Live color binding for background/foreground/accent/warning/chroma
@@ -1735,11 +1754,17 @@ timerInterval = setInterval(tick, 1000);
       document.documentElement.style.setProperty('--chroma', chromaColor.value);
     });
 
-    applyTimerSizing(timerSizeSlider.value);
+    setUiScale();
+    setTimerSizeFromSlider();
     timerEl.setAttribute('data-text', timerEl.textContent);
 
     warningColor.value = getComputedStyle(document.documentElement).getPropertyValue('--warning').trim();
     chromaColor.value = (getComputedStyle(document.documentElement).getPropertyValue('--chroma').trim() || '#00FF00');
+
+    window.addEventListener('resize', () => {
+      setUiScale();
+      setTimerSizeFromSlider();
+    });
 
     // If fullscreen is lost unexpectedly, treat it like a stop
     document.addEventListener('fullscreenchange', () => {
@@ -1835,7 +1860,8 @@ timerInterval = setInterval(tick, 1000);
       warningColor.value = '#ff0000';
 
       timerSizeSlider.value = '15';
-      applyTimerSizing(timerSizeSlider.value);
+      setTimerSizeFromSlider();
+      setUiScale();
 
       timerEl.textContent = '00:00';
       timerEl.setAttribute('data-text', timerEl.textContent);
