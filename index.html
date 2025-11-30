@@ -492,12 +492,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 12px;
+      border-radius: 50%;
       background: var(--panel-bg);
       border: 1px solid var(--panel-border);
       color: var(--fg);
       font-weight: 700;
-      letter-spacing: 0.08em;
+      font-size: 1.05em;
+      letter-spacing: 0.06em;
       box-shadow: var(--panel-shadow);
     }
 
@@ -958,7 +959,7 @@ select,
 </head>
 <body class="dark">
   <button id="resetDefaultsBtn" title="Restore default settings" style="font-weight: bold;"> Reset Defaults</button>
-  <button id="runningCloseBtn" class="hidden" aria-label="Stop timer">X</button>
+  <button id="runningCloseBtn" class="hidden" aria-label="Stop timer">×</button>
 
   <!-- Controls container with input and preset buttons -->
   <div id="controls">
