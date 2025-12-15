@@ -13,6 +13,8 @@
     /* Root CSS variables for colors */
     :root {
       --bg: #000000;
+      --bg-dark-1: #111827; /* gradient start */
+      --bg-dark-2: #020617; /* gradient mid */
       --fg: #f5f5f5;
       --accent: #4bb7ff;
       --warning: #ff0000;
@@ -119,7 +121,12 @@
   min-height: 100vh;
   min-height: 100svh; /* fill dynamic viewport on iPad/iOS */
   background-color: var(--bg);  /* solid fallback */
-  background: radial-gradient(circle at top, #111827 0%, #020617 40%, var(--bg) 100%);
+  background: radial-gradient(
+    circle at top,
+    var(--bg-dark-1) 0%,
+    var(--bg-dark-2) 40%,
+    var(--bg) 100%
+  );
   color: var(--fg);
   font-family: "Helvetica", Arial, sans-serif;
   font-size: var(--ui-font);
@@ -1065,7 +1072,7 @@ select,
 
   <!-- Top right timer size slider -->
   <div id="topRightControls">
-    <label for="timerSizeSlider">Timer Size <input type="range" id="timerSizeSlider" min="3" max="40" value="20" /></label>
+    <label for="timerSizeSlider">Timer Size <input type="range" id="timerSizeSlider" min="3" max="70" value="30" /></label>
   </div>
 
   <!-- Timer display -->
@@ -1196,9 +1203,50 @@ select,
       timerEl.style.fontSize = vmin + 'vmin';
       const height = (vmin / 30) * 1.5;
       progressContainer.style.height = `${height}vmin`;
-      const width = Math.min(vmin * 3, 95);
+      const width = Math.min(vmin * 4.2, 110); // extend width when using larger sizes
       progressContainer.style.width = `${width}vmin`;
       timerEl.setAttribute('data-text', timerEl.textContent);
+    }
+
+    // Generate a gradient that always keys off the chosen background color
+    function parseCssColor(colorValue) {
+      const tmp = document.createElement('div');
+      tmp.style.color = colorValue;
+      document.body.appendChild(tmp);
+      const computed = getComputedStyle(tmp).color;
+      tmp.remove();
+      const match = computed.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+      if (!match) return null;
+      return {
+        r: parseInt(match[1], 10),
+        g: parseInt(match[2], 10),
+        b: parseInt(match[3], 10)
+      };
+    }
+
+    function darkenRgb(rgb, amount) {
+      const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
+      return {
+        r: clamp(rgb.r * (1 - amount)),
+        g: clamp(rgb.g * (1 - amount)),
+        b: clamp(rgb.b * (1 - amount))
+      };
+    }
+
+    function rgbToCss(rgb) {
+      return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+    }
+
+    function applyBackgroundGradient(colorValue) {
+      const rgb = parseCssColor(colorValue);
+      if (!rgb) return;
+
+      const shade1 = darkenRgb(rgb, 0.25); // gentle darkening for top of gradient
+      const shade2 = darkenRgb(rgb, 0.55); // deeper shade for mid gradient
+
+      document.documentElement.style.setProperty('--bg', rgbToCss(rgb));
+      document.documentElement.style.setProperty('--bg-dark-1', rgbToCss(shade1));
+      document.documentElement.style.setProperty('--bg-dark-2', rgbToCss(shade2));
     }
 
     // Accept mm:ss or raw seconds and return total seconds
@@ -1750,7 +1798,7 @@ timerInterval = setInterval(tick, 1000);
 
     // Live color binding for background/foreground/accent/warning/chroma
     bgColor.addEventListener('input', () => {
-      document.documentElement.style.setProperty('--bg', bgColor.value);
+      applyBackgroundGradient(bgColor.value);
     });
 
     fgColor.addEventListener('input', () => {
@@ -1865,6 +1913,8 @@ timerInterval = setInterval(tick, 1000);
       syncProgressUI();
 
       document.documentElement.style.setProperty('--bg', 'black');
+      document.documentElement.style.setProperty('--bg-dark-1', '#111827');
+      document.documentElement.style.setProperty('--bg-dark-2', '#020617');
       document.documentElement.style.setProperty('--fg', 'white');
       document.documentElement.style.setProperty('--accent', '#ff4b4b');
       document.documentElement.style.setProperty('--warning', 'red');
@@ -1874,7 +1924,7 @@ timerInterval = setInterval(tick, 1000);
       accentColor.value = '#ff4b4b';
       warningColor.value = '#ff0000';
 
-      timerSizeSlider.value = '15';
+      timerSizeSlider.value = '30';
       setTimerSizeFromSlider();
       setUiScale();
 
