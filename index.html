@@ -6,26 +6,26 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-
   <meta charset="UTF-8" />
   <title>Fullscreen Timer</title>
   <style>
-    /* Root CSS variables for colors */
+
     :root {
       --bg: #000000;
-      --bg-dark-1: #111827; /* gradient start */
-      --bg-dark-2: #020617; /* gradient mid */
+      --bg-dark-1: #111827; 
+      --bg-dark-2: #020617; 
       --fg: #f5f5f5;
+      --timer-fg: #f5f5f5;
       --accent: #4bb7ff;
+      --progress-accent: #ff4b4b;
       --warning: #ff0000;
       --stroke: #000000;
-      --outline-w: clamp(3px, 0.6vmin, 12px); /* UI outline thickness */
-      --outline-text: 0.04em; /* Text stroke thickness (scales with font) */
-      --chroma: #00FF00; /* default chroma key color */
-      --action-w: 20ch; /* unified width for bottom controls */
-      --action-h: calc(1.8em + 18px); /* unified height matches toggle */
+      --outline-w: clamp(3px, 0.6vmin, 12px); 
+      --outline-text: 0.04em; 
+      --chroma: #00FF00; 
+      --action-w: 20ch; 
+      --action-h: calc(1.8em + 18px); 
 
-      /* Responsive scaling vars */
       --ui-scale: 1;
       --ui-font: 16px;
       --ui-gap-xs: calc(6px * var(--ui-scale));
@@ -50,11 +50,14 @@
       --button-border-strong: rgba(255, 255, 255, 0.8);
     }
 
-    /* Light mode color overrides */
     body.light {
       --bg: #f6f7fb;
+      --bg-dark-1: #e9ecf5;
+      --bg-dark-2: #dbe3f2;
       --fg: #111827;
+      --timer-fg: #111827;
       --accent: #4bb7ff;
+      --progress-accent: #ff4b4b;
       --warning: #ff0000;
       --panel-bg: rgba(255, 255, 255, 0.95);
       --panel-border: rgba(15, 23, 42, 0.06);
@@ -65,33 +68,22 @@
       --button-bg-hover: rgba(15, 23, 42, 0.08);
       --button-border: rgba(148, 163, 184, 0.8);
       --button-border-strong: rgba(15, 23, 42, 0.9);
-
-      /* override background for light mode */
-      background: linear-gradient(
-        to bottom,
-        #f3f4f6 0%,
-        #f9fafb 40%,
-        #ffffff 100%
-      );
     }
 
-    /* Chroma key mode overrides and text stroke */
     body.chroma {
-      /* Background becomes chroma variable */
+
       --bg: var(--chroma);
-      /* Keep text white unless warning overrides it */
+
       --fg: #ffffff;
 
-      /* Flatten panels (less shadow/edges when keying) */
       --panel-bg: rgba(0, 0, 0, 0.75);
       --panel-border: rgba(0, 0, 0, 0.85);
       --panel-shadow: none;
     }
 
-    /* Chroma outlines only on the timer text (outside-only via layered stroke) */
     body.chroma #timer {
       position: relative;
-      z-index: 0; /* create stacking context for behind-layer */
+      z-index: 0; 
     }
     body.chroma #timer::before {
       content: attr(data-text);
@@ -100,27 +92,27 @@
       color: transparent;
       -webkit-text-fill-color: transparent;
       -webkit-text-stroke: var(--outline-text) var(--stroke);
-      /* Larger shadow layered behind stroke + fill */
+
       text-shadow: 0.45vw 0.45vw 1vw rgba(0, 0, 0, 0.9);
       pointer-events: none;
-      z-index: -1; /* ensure shadow+stroke sit behind white fill */
+      z-index: -1; 
     }
 
-    /* Outline around progress bar container (and bar) in chroma mode */
     body.chroma #progressContainer,
     body.chroma #progressBar {
       box-shadow: 0 0 0 var(--outline-w) var(--stroke);
     }
 
-    /* Fullscreen body and html setup */
     html, body {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
-  min-height: 100svh; /* fill dynamic viewport on iPad/iOS */
-  background-color: var(--bg);  /* solid fallback */
+  min-height: 100svh; 
+  min-height: 100dvh;
+  background-color: var(--bg);  
   background: radial-gradient(
     circle at top,
     var(--bg-dark-1) 0%,
@@ -138,17 +130,18 @@
   overflow: hidden;
 }
 
-
-    body.chroma {
-      background: var(--bg); /* Solid background for chroma */
+    body.no-gradient {
+      background: var(--bg) !important;
     }
 
-    /* Hide mouse cursor when active */
+    body.chroma {
+      background: var(--chroma) !important; 
+    }
+
     body.hide-cursor {
       cursor: none;
     }
 
-    /* Generic panel style for all floating control groups */
     .panel {
       background: var(--panel-bg);
       border-radius: var(--panel-radius);
@@ -157,7 +150,6 @@
       backdrop-filter: blur(18px);
     }
 
-    /* Controls container at top center */
     #controls {
       position: absolute;
       top: var(--ui-gap-md);
@@ -178,7 +170,6 @@
       box-shadow: var(--panel-shadow);
     }
 
-    /* Preset time buttons container styling */
     #presetTimes {
       display: flex;
       gap: var(--ui-gap-sm);
@@ -189,7 +180,6 @@
       user-select: none;
     }
 
-    /* Preset Label Styling */
     #presetLabel {
       font-size: 0.95em;
       margin-bottom: 0;
@@ -201,7 +191,24 @@
       user-select: none;
     }
 
-    /* Preset time buttons style */
+    .controlHeading {
+      font-size: 0.95em;
+      margin-bottom: 0;
+      color: var(--fg);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      opacity: 0.8;
+      user-select: none;
+    }
+
+    #controls .controlStack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--ui-gap-xs);
+    }
+
     #presetTimes button {
       padding: 6px 12px;
       font-size: 0.95em;
@@ -210,7 +217,6 @@
       border-radius: 999px;
     }
 
-    /* Timer queue container */
     #queueContainer {
       position: absolute;
       top: 50%;
@@ -324,14 +330,9 @@
       display: flex;
       align-items: center;
       gap: var(--ui-gap-sm);
-      font-size: 0.85em;
+      min-width: 0;
+      width: auto;
       white-space: nowrap;
-      opacity: 0.85;
-    }
-
-    #autoNextGroup input {
-      width: 1.1em;
-      height: 1.1em;
     }
 
     #nextTimerButton {
@@ -350,14 +351,13 @@
       font-weight: 600;
     }
 
-    /* Floating start/pause toggle when running */
     #floatingPauseBtn,
     #floatingCloseBtn {
       position: fixed;
       bottom: 12px;
       right: 12px;
       z-index: 65;
-      min-width: 140px;
+      min-width: calc(140px * var(--ui-scale));
       height: calc(var(--action-h) * 0.75);
       font-size: 0.92em;
       display: flex;
@@ -370,15 +370,14 @@
       text-transform: uppercase;
     }
 
-    /* Start button container fixed at bottom center */
     #startContainer {
       position: absolute;
-      bottom: calc(var(--ui-gap-lg) * 2);
+      bottom: var(--ui-gap-lg);
       left: 50%;
       transform: translateX(-50%);
       z-index: 10;
-      display: flex;
-      flex-direction: column; /* Start button on first row, toggles below */
+      display: grid;
+      grid-template-rows: 1fr auto;
       align-items: center;
       gap: var(--ui-gap-md);
       padding: var(--ui-gap-md) var(--ui-gap-lg);
@@ -389,8 +388,9 @@
       box-shadow: var(--panel-shadow);
     }
 
-    /* Start button style (FOREST GREEN) */
     #startBtn {
+      grid-row: 1;
+      align-self: center;
       font-size: 1.05em;
       padding: 0 24px;
       height: var(--ui-start-h);
@@ -404,9 +404,9 @@
       font-weight: 600;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      background: #06ad00; /* forest green */
+      background: #06ad00; 
       border-color: var(--button-border-strong);
-      color: #ffffff;
+      color: var(--fg);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
       transform: translateY(0);
       transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
@@ -421,8 +421,9 @@
       box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
     }
 
-    /* Row of toggles under Start */
     #startToggles {
+      grid-row: 2;
+      align-self: end;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -430,75 +431,79 @@
       flex-wrap: wrap;
     }
 
-    /* Timer display big text centered */
     #timer {
       text-align: center;
-      font-size: 15vmin; /* responsive large font size */
+      font-size: clamp(3rem, 15vmin, 25vmin); 
       user-select: none;
       font-weight: 700;
       letter-spacing: 0.02em;
       font-variant-numeric: tabular-nums;
+      margin: 0;
+      padding: 0;
+      line-height: 1.1;
     }
 
-    /* Subtle drop shadow for readability when not in chroma */
     body:not(.chroma) #timer {
-      text-shadow: 0.22vw 0.22vw 0.4vw rgba(0, 0, 0, 0.55);
+      text-shadow: 0.22vmin 0.22vmin 0.4vmin rgba(0, 0, 0, 0.55);
     }
 
-    /* Color utility classes */
     .red {
       color: var(--accent);
     }
 
     .white {
-      color: var(--fg);
+      color: var(--timer-fg);
     }
 
     .warning {
       color: var(--warning);
     }
 
-    /* Shortcut key legend position */
     #shortcutIndex {
       position: absolute;
       top: 56px;
       left: 20px;
-      font-size: clamp(10px, 0.85vw, 14px);
+      font-size: clamp(15px, 1.275vmin, 21px);
       font-weight: 600;
       color: var(--fg);
       user-select: none;
-      opacity: 0.78;
+      opacity: 1;
       line-height: 1.35;
-      display: inline-block;      /* size box to text */
-      white-space: normal;        /* allow wrapping */
+      display: inline-block;      
+      white-space: normal;        
       font-family: "Helvetica", Arial, sans-serif;
       z-index: 20;
-      padding: 6px 8px;
-      border-radius: 10px;
-      background: rgba(15, 15, 20, 0.78);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55);
-    }
-    body.light #shortcutIndex {
-      background: rgba(255, 255, 255, 0.9);
-      border-color: rgba(148, 163, 184, 0.6);
+      padding: 9px 12px;
+      border-radius: 15px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      box-shadow: var(--panel-shadow);
     }
 
-    /* Reset Defaults button (top-left) */
     #resetDefaultsBtn {
       position: absolute;
-      top: var(--ui-gap-xs);
-      left: var(--ui-gap-xs);
+      top: var(--ui-gap-md);
+      left: 20px;
       z-index: 50;
-      font-size: 0.95em;
-      padding: 6px 18px;
-      border-radius: 999px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      min-height: var(--ui-control-h);
+      height: var(--ui-control-h);
+      padding: 0 calc(10px * var(--ui-scale));
+      box-sizing: border-box;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      box-shadow: var(--panel-shadow);
+    }
+    #resetDefaultsBtn:hover {
+      background: var(--panel-bg);
+    }
+    #resetDefaultsBtn:active {
+      transform: translateY(1px);
     }
 
-    /* Compact close button shown only while timer is running */
     #runningCloseBtn {
       position: fixed;
       top: var(--ui-gap-xs);
@@ -521,34 +526,30 @@
       box-shadow: var(--panel-shadow);
     }
 
-    /* Hide elements utility */
     .hidden {
       display: none !important;
     }
 
-    /* Progress bar container */
     #progressContainer {
       background: rgba(15, 23, 42, 0.7);
       border-radius: 999px;
       margin-top: var(--ui-gap-lg);
       overflow: hidden;
-      height: 0.75vmin; /* default, JS adjusts */
-      width: 50vmin;
+      height: clamp(6px, 1vmin, 18px); 
+      width: clamp(200px, 50vmin, 90vw); 
       user-select: none;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
       border: 1px solid rgba(255, 255, 255, 0.18);
     }
 
-    /* Actual progress bar fill */
     #progressBar {
       height: 100%;
       width: 0%;
-      background: var(--accent);
+      background: var(--progress-accent);
       transition: width 1s linear;
       user-select: none;
     }
 
-    /* Bottom left color pickers stacked vertically */
     #colorGrid {
       position: absolute;
       bottom: var(--ui-gap-lg);
@@ -567,7 +568,6 @@
       box-shadow: var(--panel-shadow);
     }
 
-    /* Color picker labels */
     #colorGrid label {
       display: flex;
       align-items: center;
@@ -577,7 +577,6 @@
       opacity: 0.9;
     }
 
-    /* Circular color inputs */
     #colorGrid input[type="color"] {
       appearance: none;
       -webkit-appearance: none;
@@ -589,11 +588,11 @@
       background: transparent;
       cursor: pointer;
       overflow: hidden;
-      box-sizing: border-box; /* keep outer ring and swatch the same diameter */
+      box-sizing: border-box; 
       aspect-ratio: 1 / 1;
     }
     #colorGrid input[type="color"]::-webkit-color-swatch-wrapper {
-      padding: 0; /* remove default inset that shrinks the swatch */
+      padding: 0; 
       border-radius: 50%;
     }
     #colorGrid input[type="color"]::-webkit-color-swatch {
@@ -608,11 +607,49 @@
       border-color: rgba(148, 163, 184, 0.8);
     }
 
-    /* Show chroma color control only in chroma mode */
+    #gradientToggleGroup {
+      width: auto;
+      min-width: 0;
+      justify-content: flex-start;
+      order: 5;
+    }
+    #gradientToggleGroup input[type="checkbox"],
+    #autoNextGroup input[type="checkbox"] {
+      appearance: none;
+      width: 1.4em;
+      height: 1.4em;
+      border: 2px solid var(--button-border-strong);
+      border-radius: 4px;
+      display: inline-block;
+      position: relative;
+      background: transparent;
+      margin: 0;
+      flex-shrink: 0;
+    }
+    #gradientToggleGroup input[type="checkbox"]:checked,
+    #autoNextGroup input[type="checkbox"]:checked {
+      background: #ffffff;
+      border-color: var(--button-border-strong);
+    }
+    #gradientToggleGroup input[type="checkbox"]:checked::after,
+    #autoNextGroup input[type="checkbox"]:checked::after {
+      content: '\2713';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -55%);
+      font-size: 1.15em;
+      color: #111827;
+      font-weight: 700;
+    }
+    #progressColorGroup,
+    #chromaColorGroup {
+      order: 4;
+    }
+
     #chromaColorGroup { display: none; }
     body.chroma #chromaColorGroup { display: flex; }
 
-    /* Bottom right controls stacked vertically */
     #bottomRightControls {
       position: absolute;
       bottom: var(--ui-gap-lg);
@@ -631,13 +668,13 @@
       box-shadow: var(--panel-shadow);
     }
 
-    /* Buttons inside bottom right controls */
-    #bottomRightControls > button {
+    #bottomRightControls > button,
+    #resetDefaultsBtn {
       display: flex;
       align-items: center;
       gap: 8px;
       user-select: none;
-      min-width: 155px;
+      min-width: calc(155px * var(--ui-scale));
       justify-content: center;
       border-radius: 999px;
       font-size: 0.92em;
@@ -645,7 +682,6 @@
       letter-spacing: 0.06em;
     }
 
-    /* Top-right timer size control */
     #topRightControls {
       position: absolute;
       top: var(--ui-gap-md);
@@ -674,10 +710,9 @@
       position: relative;
       top: 1px;
       accent-color: var(--accent);
-      width: 140px;
+      width: calc(140px * var(--ui-scale));
     }
 
-    /* Square toggle button styling for checkboxes */
     .toggleBtn {
       display: flex;
       align-items: center;
@@ -690,7 +725,7 @@
       min-width: var(--action-w);
       height: var(--action-h);
       box-sizing: border-box;
-      justify-content: center;
+      justify-content: space-between;
       border: 1px solid var(--button-border);
       font-size: 0.9em;
       transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
@@ -730,13 +765,11 @@
       font-weight: 700;
     }
 
-    /* "Active" visual state for Minimal mode toggle */
     .toggleBtn.active {
       border-color: var(--accent);
       box-shadow: 0 0 0 1px rgba(0,0,0,0.1), 0 12px 25px rgba(0,0,0,0.4);
     }
 
-    /* Form inputs, buttons, selects and labels styling */
     input, button, select, label {
       font-size: 1em;
       font-family: inherit;
@@ -782,17 +815,15 @@
       box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
     }
 
-    /* Warning threshold select width */
     #redThreshold {
       width: auto;
-      min-width: 110px;
+      min-width: calc(110px * var(--ui-scale));
       white-space: nowrap;
       background: var(--input-bg);
       color: var(--fg);
       border-color: var(--input-border);
     }
 
-    /* Ensure dropdown options are legible in both modes */
     #redThreshold option {
       background: #020617;
       color: #f9fafb;
@@ -802,10 +833,15 @@
       color: #111827;
     }
 
-    /* Warning label text smaller */
     #warningLabel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--ui-gap-xs);
       font-size: 0.9em;
+      font-weight: normal;
       opacity: 0.95;
+      user-select: none;
     }
 
     #warningLabel select {
@@ -815,13 +851,12 @@
       color: var(--fg);
     }
 
-    /* Paused text displayed bottom center */
     #pausedText {
       position: absolute;
       bottom: 12px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 1.4vw;
+      font-size: clamp(12px, 1.4vmin, 24px);
       color: var(--accent);
       font-weight: 700;
       user-select: none;
@@ -831,35 +866,34 @@
       text-shadow: 0 0 18px rgba(0, 0, 0, 0.7);
     }
 
-    /* Mobile-ish adjustments */
     @media (max-width: 900px) {
       #controls {
         top: 14px;
-        font-size: 2.6vw;
+        font-size: clamp(12px, 2.6vmin, 18px);
       }
       #topRightControls {
         top: auto;
-        bottom: 180px;
+        bottom: calc(180px * var(--ui-scale));
       }
       #shortcutIndex {
         display: none;
       }
       #queueContainer {
         right: 10px;
-        width: 250px;
+        width: min(250px, 90vw);
       }
       #startContainer {
-        bottom: 26px;
+        bottom: calc(26px * var(--ui-scale));
       }
     }
 #timeInput {
-  height: var(--ui-control-h);               /* same as other controls */
-  line-height: var(--ui-control-h);          /* vertically centers placeholder + text */
+  height: var(--ui-control-h);               
+  line-height: var(--ui-control-h);          
   padding-top: 0;
   padding-bottom: 0;
 }
 #timeInput::placeholder {
-  line-height: normal;        /* ensures proper alignment in all browsers */
+  line-height: normal;        
 }
 input[type="text"],
 select {
@@ -868,7 +902,7 @@ select {
   padding-top: 0;
   padding-bottom: 0;
 }
-/* Global control sizing for touch devices */
+
 button,
 input[type="text"],
 select,
@@ -877,12 +911,10 @@ select,
   font-size: 1rem;
 }
 
-/* Specifically for the main controls row */
 #controls {
   row-gap: var(--ui-gap-sm);
 }
 
-/* Make Start button and toggles a bit taller */
 #startBtn {
   min-height: var(--ui-start-h);
 }
@@ -891,49 +923,138 @@ select,
   min-height: var(--ui-control-h);
 }
 
-/* Portrait-friendly tweaks for tablets/phones */
 @media (orientation: portrait) {
   body {
     justify-content: flex-start;
-    padding-top: clamp(70px, 12vh, 120px);
+    padding-top: clamp(50px, 6vh, 80px);
+    padding-bottom: clamp(50px, 6vh, 80px);
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #timer {
+    font-size: clamp(2.5rem, 12vw, 18vmin);
+    margin: var(--ui-gap-lg) 0;
   }
 
   #controls {
-    width: 96vw;
+    position: static !important;
+    width: 95vw !important;
+    max-width: 100%;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
     flex-direction: column;
     align-items: stretch;
-    font-size: clamp(14px, 1.5vmin, 18px);
+    font-size: clamp(11px, 2.5vw, 14px);
     row-gap: var(--ui-gap-sm);
+    margin-bottom: var(--ui-gap-md);
+  }
+
+  #controls > input[type="text"],
+  #controls #warningLabel,
+  #controls > div {
+    width: 100%;
+  }
+
+  #presetTimes {
+    justify-content: space-between;
+    gap: var(--ui-gap-xs);
   }
 
   #queueContainer {
-    position: static;
-    transform: none;
-        width: 96vw;
-        margin-top: 12px;
-      }
+    position: static !important;
+    transform: none !important;
+    width: 95vw !important;
+    max-width: 100%;
+    right: auto !important;
+    top: auto !important;
+    margin: 0 auto var(--ui-gap-md);
+  }
 
   #startContainer {
-    width: 96vw;
+    position: static !important;
+    width: 95vw !important;
+    max-width: 100%;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+    margin: var(--ui-gap-md) auto;
   }
 
   #progressContainer {
-    width: min(88vmin, 94vw);
+    width: 90vw !important;
+    max-width: calc(100% - 20px);
+    height: clamp(6px, 2vw, 16px);
+    margin: var(--ui-gap-lg) auto 0;
   }
 
   #topRightControls {
-    position: static;
-    width: 96vw;
-    margin-top: var(--ui-gap-sm);
+    position: static !important;
+    width: 95vw !important;
+    max-width: 100%;
+    top: auto !important;
+    right: auto !important;
+    margin: var(--ui-gap-md) auto;
     justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  #topRightControls label {
+    font-size: clamp(11px, 2.5vw, 14px);
+  }
+
+  #colorGrid {
+    position: static !important;
+    width: 95vw !important;
+    max-width: 100%;
+    bottom: auto !important;
+    left: auto !important;
+    margin: var(--ui-gap-md) auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--ui-gap-sm);
+  }
+
+  #bottomRightControls {
+    position: static !important;
+    width: 95vw !important;
+    max-width: 100%;
+    bottom: auto !important;
+    right: auto !important;
+    margin: var(--ui-gap-md) auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--ui-gap-md);
+  }
+
+  #bottomRightControls > button {
+    min-width: auto;
+    flex: 1 1 calc(50% - var(--ui-gap-sm));
+    font-size: clamp(10px, 2vw, 12px);
+  }
+
+  #startToggles {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toggleBtn {
+    min-width: 0;
+    width: 100%;
   }
 
   #shortcutIndex {
-    display: none;
+    display: none !important;
   }
 }
+
 @media (max-width: 1024px) {
-  /* Controls: full-width bar at top */
+
   #controls {
     top: 10px;
     left: 50%;
@@ -946,7 +1067,7 @@ select,
 
   #controls > input[type="text"],
   #controls #warningLabel,
-  #controls > div { /* the presets wrapper */
+  #controls > div { 
     width: 100%;
   }
 
@@ -954,7 +1075,6 @@ select,
     justify-content: space-between;
   }
 
-  /* Put queue below timer instead of on the right */
   #queueContainer {
     position: static;
     transform: none;
@@ -962,15 +1082,13 @@ select,
     margin-top: 10px;
   }
 
-  /* Keep it near bottom visually */
   body {
     justify-content: flex-start;
-    padding-top: 80px; /* space for controls */
+    padding-top: clamp(60px, 10vh, 96px); 
   }
 
-  /* Start container closer to bottom but centered */
   #startContainer {
-    bottom: 24px;
+    bottom: calc(24px * var(--ui-scale));
     width: 94vw;
   }
 
@@ -982,7 +1100,6 @@ select,
     min-width: calc(50% - 8px);
   }
 
-  /* Hide the shortcut legend on iPad – no keyboard usually */
   #shortcutIndex {
     display: none;
   }
@@ -991,16 +1108,20 @@ select,
   </style>
 </head>
 <body class="dark">
-  <button id="resetDefaultsBtn" title="Restore default settings" style="font-weight: bold;"> Reset Defaults</button>
+
+  <button id="resetDefaultsBtn" title="Restore default settings">Reset Defaults</button>
+
   <button id="runningCloseBtn" class="hidden" aria-label="Stop timer">×</button>
 
-  <!-- Controls container with input and preset buttons -->
   <div id="controls">
-    <input type="text" id="timeInput" placeholder="mm:ss or seconds" autocomplete="off" />
+    <div id="timeInputGroup" class="controlStack">
+      <span class="controlHeading">Input Time</span>
+      <input type="text" id="timeInput" placeholder="mm:ss or seconds" autocomplete="off" />
+    </div>
 
-    <label id="warningLabel" for="redThreshold" style="display: flex; align-items: center; gap: 6px; font-weight: normal; user-select:none;">
-      Warning:
-      <select id="redThreshold" aria-label="Warning" style="font-weight: normal;">
+    <label id="warningLabel" for="redThreshold" class="controlStack">
+      <span class="controlHeading">Warning</span>
+      <select id="redThreshold" aria-label="Warning">
         <option value="0" selected>None</option>
         <option value="15">15 seconds</option>
         <option value="30">30 seconds</option>
@@ -1011,9 +1132,8 @@ select,
       </select>
     </label>
 
-    <!-- Preset time buttons for quick set -->
-    <div style="display: flex; flex-direction: column; align-items: center;">
-      <div id="presetLabel">Presets</div>
+    <div id="presetGroup" class="controlStack">
+      <div id="presetLabel" class="controlHeading">Presets</div>
       <div id="presetTimes">
         <button data-time="60">1:00</button>
         <button data-time="180">3:00</button>
@@ -1023,7 +1143,6 @@ select,
     </div>
   </div>
 
-  <!-- Timer queue manager -->
   <div id="queueContainer" class="hidden">
     <h3>Timer Queue</h3>
     <div id="queueForm">
@@ -1035,7 +1154,7 @@ select,
       <button id="startQueueBtn" disabled>Start Queue</button>
       <div id="queueSecondary">
         <button id="clearQueueBtn">Clear Queue</button>
-        <label id="autoNextGroup"><input type="checkbox" id="autoNextToggle" /> Auto Next</label>
+        <label id="autoNextGroup" for="autoNextToggle">Auto Next <input type="checkbox" id="autoNextToggle" /></label>
       </div>
     </div>
   </div>
@@ -1043,23 +1162,22 @@ select,
   <div id="startContainer">
     <button id="startBtn">Start</button>
     <div id="startToggles">
-      <label class="toggleBtn" for="showProgress"><input type="checkbox" id="showProgress" /> Progress Bar</label>
-      <label class="toggleBtn"><input type="checkbox" id="countUpToggle" /> Count Up</label>
-      <label class="toggleBtn"><input type="checkbox" id="autostartToggle" checked /> Autostart</label>
-      <label class="toggleBtn"><input type="checkbox" id="queueToggle" /> Queue</label>
+      <label class="toggleBtn" for="showProgress">Progress Bar <input type="checkbox" id="showProgress" /></label>
+      <label class="toggleBtn" for="countUpToggle">Count Up <input type="checkbox" id="countUpToggle" /></label>
+      <label class="toggleBtn" for="autostartToggle">Autostart <input type="checkbox" id="autostartToggle" checked /></label>
+      <label class="toggleBtn" for="queueToggle">Queue <input type="checkbox" id="queueToggle" /></label>
     </div>
   </div>
 
-  <!-- Bottom left color pickers -->
   <div id="colorGrid">
     <label for="bgColor">Background <input type="color" id="bgColor" /></label>
-    <label for="fgColor">Text <input type="color" id="fgColor" /></label>
-    <label id="progressColorGroup" for="accentColor">Progress <input type="color" id="accentColor" /></label>
+    <label for="fgColor">Timer Text <input type="color" id="fgColor" /></label>
     <label for="warningColor">Warning <input type="color" id="warningColor" /></label>
+    <label id="gradientToggleGroup" for="gradientToggle">Gradient <input type="checkbox" id="gradientToggle" /></label>
+    <label id="progressColorGroup" for="accentColor">Progress <input type="color" id="accentColor" /></label>
     <label id="chromaColorGroup" for="chromaColor" style="display:none">Chroma <input type="color" id="chromaColor" value="#00FF00" /></label>
   </div>
 
-  <!-- Bottom right controls -->
   <div id="bottomRightControls">
     <button id="modeToggle">Light Mode</button>
     <button id="chromaModeToggle">Chroma Mode</button>
@@ -1070,20 +1188,16 @@ select,
   <button id="floatingPauseBtn" class="hidden">Pause</button>
   <button id="floatingCloseBtn" class="hidden">Close</button>
 
-  <!-- Top right timer size slider -->
   <div id="topRightControls">
-    <label for="timerSizeSlider">Timer Size <input type="range" id="timerSizeSlider" min="3" max="70" value="30" /></label>
+    <label for="timerSizeSlider">Timer Size <input type="range" id="timerSizeSlider" min="3" max="70" value="37" /></label>
   </div>
 
-  <!-- Timer display -->
   <div id="timer" class="white">00:00</div>
 
-  <!-- Progress bar container and bar -->
   <div id="progressContainer">
     <div id="progressBar"></div>
   </div>
 
-  <!-- Keyboard shortcut legend -->
   <div id="shortcutIndex">
     R – Reset Timer<br />
     Esc – Stop<br />
@@ -1094,18 +1208,19 @@ select,
     M – Minimal Mode<br />
     C – Count Up/Down<br />
     P – Toggle Progress Bar<br />
+    G - Toggle Gradient<br />
     A – Toggle Autostart<br />
     Q - Toggle Queue
   </div>
 
-  <!-- Paused text overlay -->
   <div id="pausedText" class="hidden">Paused</div>
 
   <script>
-    // Cache references to frequently used DOM elements for performance and clarity
+
     const timerEl = document.getElementById('timer');
     const timerSizeSlider = document.getElementById('timerSizeSlider');
     const bgColor = document.getElementById('bgColor');
+    const gradientToggle = document.getElementById('gradientToggle');
     const fgColor = document.getElementById('fgColor');
     const accentColor = document.getElementById('accentColor');
     const warningColor = document.getElementById('warningColor');
@@ -1145,7 +1260,9 @@ select,
     const floatingCloseBtn = document.getElementById('floatingCloseBtn');
     const runningCloseBtn = document.getElementById('runningCloseBtn');
 
-    // Core timer state variables
+    const defaultTimerSize = Math.round((Number(timerSizeSlider.min) + Number(timerSizeSlider.max)) / 2);
+    timerSizeSlider.value = String(defaultTimerSize);
+
     let duration = 0;
     let timeRemaining = 0;
     let elapsed = 0;
@@ -1159,7 +1276,7 @@ select,
     let currentQueueDuration = null;
     let queueAwaitingNext = false;
     let autoNextEnabled = false;
-    let timerFinished = false; // tracks when a timer has naturally completed so the close button can appear
+    let timerFinished = false;
     autoNextEnabled = autoNextToggle ? autoNextToggle.checked : false;
 
     function syncProgressUI() {
@@ -1189,26 +1306,86 @@ select,
       }
     }
 
-    // Compute responsive UI scale based on viewport and expose via CSS variables
     function setUiScale() {
-      const minSide = Math.min(window.innerWidth, window.innerHeight);
-      const scale = Math.min(1.18, Math.max(0.82, minSide / 1100));
+      const viewport = window.visualViewport;
+      const width = Math.max(320, viewport ? viewport.width : window.innerWidth);
+      const height = Math.max(320, viewport ? viewport.height : window.innerHeight);
+      const isPortrait = height >= width;
+
+      let scale;
+      if (isPortrait) {
+        const widthScale = width / 900;
+        const heightScale = height / 1600;
+        scale = Math.sqrt(widthScale * heightScale);
+        scale = Math.min(1.16, Math.max(0.70, scale));
+      } else {
+        const widthScale = width / 1600;
+        const heightScale = height / 900;
+        scale = Math.sqrt(widthScale * heightScale);
+        scale = Math.min(1.18, Math.max(0.78, scale));
+      }
+
       document.documentElement.style.setProperty('--ui-scale', scale.toFixed(3));
       document.documentElement.style.setProperty('--ui-font', `${Math.round(16 * scale)}px`);
     }
 
-    // Timer sizing from slider (vmin-based so portrait/landscape match)
+    function syncResetDefaultsSize() {
+      if (!resetDefaultsBtn || !shortcutIndex || !modeToggle) return;
+
+      const modeRect = modeToggle.getBoundingClientRect();
+      if (modeRect.height > 0) {
+        const modeHeight = Math.round(modeRect.height);
+        resetDefaultsBtn.style.height = `${modeHeight}px`;
+        resetDefaultsBtn.style.minHeight = `${modeHeight}px`;
+      }
+
+      const indexRect = shortcutIndex.getBoundingClientRect();
+      if (indexRect.width > 0) {
+        const indexWidth = Math.round(indexRect.width);
+        resetDefaultsBtn.style.width = `${indexWidth}px`;
+        resetDefaultsBtn.style.minWidth = `${indexWidth}px`;
+      } else {
+        resetDefaultsBtn.style.removeProperty('width');
+        resetDefaultsBtn.style.removeProperty('min-width');
+      }
+
+      const resetRect = resetDefaultsBtn.getBoundingClientRect();
+      const gapVar = getComputedStyle(document.documentElement).getPropertyValue('--ui-gap-sm');
+      const gap = Math.max(8, Math.round(parseFloat(gapVar) || 10));
+      shortcutIndex.style.top = `${Math.round(resetRect.top + resetRect.height + gap)}px`;
+    }
+
+    function syncBottomPanelHeights() {
+      if (!startContainer || !colorGrid || !bottomRightControls) return;
+
+      const isStackedLayout = window.innerWidth <= 1024 || window.innerHeight > window.innerWidth;
+      if (isStackedLayout) {
+        startContainer.style.removeProperty('min-height');
+        startContainer.style.removeProperty('height');
+        return;
+      }
+
+      const leftHeight = colorGrid.getBoundingClientRect().height;
+      const rightHeight = bottomRightControls.getBoundingClientRect().height;
+      const targetHeight = Math.min(leftHeight, rightHeight);
+
+      if (targetHeight > 0) {
+        const exactHeight = Math.round(targetHeight);
+        startContainer.style.minHeight = `${exactHeight}px`;
+        startContainer.style.height = `${exactHeight}px`;
+      }
+    }
+
     function setTimerSizeFromSlider() {
       const vmin = parseFloat(timerSizeSlider.value);
       timerEl.style.fontSize = vmin + 'vmin';
       const height = (vmin / 30) * 1.5;
       progressContainer.style.height = `${height}vmin`;
-      const width = Math.min(vmin * 4.2, 110); // extend width when using larger sizes
+      const width = Math.min(vmin * 4.2, 92);
       progressContainer.style.width = `${width}vmin`;
       timerEl.setAttribute('data-text', timerEl.textContent);
     }
 
-    // Generate a gradient that always keys off the chosen background color
     function parseCssColor(colorValue) {
       const tmp = document.createElement('div');
       tmp.style.color = colorValue;
@@ -1237,19 +1414,43 @@ select,
       return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
     }
 
+    function setThemeProperty(name, value, includeBody = false) {
+      document.documentElement.style.setProperty(name, value);
+      if (includeBody) {
+        document.body.style.setProperty(name, value);
+      }
+    }
+
     function applyBackgroundGradient(colorValue) {
       const rgb = parseCssColor(colorValue);
       if (!rgb) return;
 
-      const shade1 = darkenRgb(rgb, 0.25); // gentle darkening for top of gradient
-      const shade2 = darkenRgb(rgb, 0.55); // deeper shade for mid gradient
+      const gradientOn = gradientToggle ? gradientToggle.checked : true;
+      const shade1 = gradientOn ? darkenRgb(rgb, 0.12) : rgb;
+      const shade2 = gradientOn ? darkenRgb(rgb, 0.25) : rgb;
 
-      document.documentElement.style.setProperty('--bg', rgbToCss(rgb));
-      document.documentElement.style.setProperty('--bg-dark-1', rgbToCss(shade1));
-      document.documentElement.style.setProperty('--bg-dark-2', rgbToCss(shade2));
+      setThemeProperty('--bg', rgbToCss(rgb), true);
+      setThemeProperty('--bg-dark-1', rgbToCss(shade1), true);
+      setThemeProperty('--bg-dark-2', rgbToCss(shade2), true);
+
+      if (body) {
+        body.classList.toggle('no-gradient', !gradientOn);
+      }
     }
 
-    // Accept mm:ss or raw seconds and return total seconds
+    function applyModeDefaults() {
+      const isLightMode = body.classList.contains('light');
+      const modeBackground = isLightMode ? '#ffffff' : '#000000';
+      const modeTimerText = isLightMode ? '#000000' : '#ffffff';
+
+      document.documentElement.style.removeProperty('--fg');
+      body.style.removeProperty('--fg');
+      bgColor.value = modeBackground;
+      fgColor.value = modeTimerText;
+      setThemeProperty('--timer-fg', modeTimerText, true);
+      applyBackgroundGradient(modeBackground);
+    }
+
     function parseTimeInput(value) {
       const parts = value.split(':');
       if (parts.length === 2) {
@@ -1263,14 +1464,12 @@ select,
       return isNaN(num) ? 0 : num;
     }
 
-    // Render total seconds into mm:ss text
     function formatTime(seconds) {
       const m = String(Math.floor(seconds / 60)).padStart(2, '0');
       const s = String(seconds % 60).padStart(2, '0');
       return `${m}:${s}`;
     }
 
-    // Build the visual queue list and enable/disable queue controls
     function renderQueue() {
       if (!queueList) return;
       queueList.innerHTML = '';
@@ -1306,7 +1505,6 @@ select,
       updateQueueVisibility();
     }
 
-    // Parse the queue input and append a timer to the pending list
     function addTimeToQueueFromInput() {
       if (!queueTimeInput) return;
       const raw = queueTimeInput.value.trim();
@@ -1317,7 +1515,6 @@ select,
       renderQueue();
     }
 
-    // Start the next queued timer (used for manual or auto-advance)
     function beginQueueTimer() {
       if (running || timerQueue.length === 0) return;
       const nextDuration = timerQueue.shift();
@@ -1327,7 +1524,6 @@ select,
       startTimer(nextDuration, { fromQueue: true });
     }
 
-    // Show or hide the queue panel based on toggle state and whether timers are active
     function updateQueueVisibility() {
       if (!queueContainer) return;
       const enabledByToggle = queueToggle ? queueToggle.checked : true;
@@ -1335,7 +1531,6 @@ select,
       queueContainer.classList.toggle('hidden', shouldHide);
     }
 
-    // Orchestrate visibility/labels for floating pause/resume and close controls
     function updateFloatingButtons() {
       if (floatingPauseBtn) {
         if (!running) {
@@ -1355,11 +1550,9 @@ select,
       }
     }
 
-    // Handle entering fullscreen when supported; best-effort only
     async function enterFullscreen() {
   const elem = document.documentElement;
 
-  // If fullscreen isn’t supported, just resolve immediately
   if (!(
     document.fullscreenEnabled ||
     document.webkitFullscreenEnabled ||
@@ -1391,7 +1584,6 @@ select,
       }
     }
 
-    // Refresh timer text color states and progress bar based on current counters
     function updateDisplay() {
       const displaySeconds = countUp ? elapsed : timeRemaining;
       timerEl.textContent = formatTime(displaySeconds);
@@ -1429,7 +1621,6 @@ select,
       }
     }
 
-    // Heartbeat called every second while running; updates time and handles completion
     function tick() {
       if (!paused) {
         if (countUp) {
@@ -1442,7 +1633,7 @@ select,
             clearInterval(timerInterval);
             running = false;
             paused = false;
-            timerFinished = true; // mark natural completion so close button can show
+            timerFinished = true;
             currentQueueDuration = null;
             updateDisplay();
             body.classList.remove('hide-cursor');
@@ -1483,7 +1674,6 @@ select,
       }
     }
 
-    // Kick off a timer run, optionally with a forced duration or queue context
     async function startTimer(forcedDuration = null, options = {}) {
       if (running) return;
 
@@ -1509,7 +1699,7 @@ select,
       elapsed = 0;
       running = true;
       paused = !autostartToggle.checked;
-      timerFinished = false; // manual stop should clear completion state
+      timerFinished = false;
       freshInput = false;
       updateQueueVisibility();
 
@@ -1538,7 +1728,7 @@ select,
       updateDisplay();
 
 try {
-  await enterFullscreen();  // try fullscreen, but don’t *require* it
+  await enterFullscreen();
 } catch (err) {
   console.warn('Fullscreen failed (OK on iPad):', err);
 }
@@ -1547,7 +1737,6 @@ timerInterval = setInterval(tick, 1000);
       renderQueue();
     }
 
-    // Fully stop the timer, restore UI, and exit fullscreen if active
     async function stopTimer() {
       const uiHidden = body.classList.contains('hide-cursor') || controls.classList.contains('hidden');
       if (!running && !paused && !queueActive && !uiHidden) return;
@@ -1558,7 +1747,7 @@ timerInterval = setInterval(tick, 1000);
       clearInterval(timerInterval);
       running = false;
       paused = false;
-      timerFinished = false; // new run shouldn't show the close button yet
+      timerFinished = false;
       timeRemaining = 0;
       elapsed = 0;
       timerEl.textContent = "00:00";
@@ -1596,7 +1785,6 @@ timerInterval = setInterval(tick, 1000);
       freshInput = true;
     }
 
-    // Reset the current timer without leaving the running state
     function resetTimer() {
       if (!running && !paused) return;
 
@@ -1608,7 +1796,7 @@ timerInterval = setInterval(tick, 1000);
       }
       paused = !autostartToggle.checked;
       running = true;
-      timerFinished = false; // reset keeps us in-run, so clear finish latch
+      timerFinished = false;
       updateQueueVisibility();
       updateFloatingButtons();
 
@@ -1628,7 +1816,6 @@ timerInterval = setInterval(tick, 1000);
       timerInterval = setInterval(tick, 1000);
     }
 
-    // Pause or resume the current timer
     function togglePause() {
       if (running) {
         paused = !paused;
@@ -1637,7 +1824,6 @@ timerInterval = setInterval(tick, 1000);
       }
     }
 
-    // Queue controls wiring
     if (queueAddBtn) {
       queueAddBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -1695,7 +1881,6 @@ timerInterval = setInterval(tick, 1000);
 
     renderQueue();
 
-    // Primary start button
     startBtn.addEventListener('click', (event) => {
       event.preventDefault();
       startTimer();
@@ -1709,7 +1894,7 @@ timerInterval = setInterval(tick, 1000);
     }
     if (floatingCloseBtn) {
       floatingCloseBtn.addEventListener('click', () => {
-        stopTimer(); // same behavior as pressing Escape
+        stopTimer();
       });
     }
     if (runningCloseBtn) {
@@ -1718,7 +1903,6 @@ timerInterval = setInterval(tick, 1000);
       });
     }
 
-    // Keyboard shortcuts for running/stopping/resetting
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && (running || queueActive || controls.classList.contains('hidden') || body.classList.contains('hide-cursor'))) {
         stopTimer();
@@ -1763,6 +1947,11 @@ timerInterval = setInterval(tick, 1000);
         e.preventDefault();
       }
 
+      if (e.key.toLowerCase() === 'g' && gradientToggle) {
+        gradientToggle.checked = !gradientToggle.checked;
+        gradientToggle.dispatchEvent(new Event('change'));
+        e.preventDefault();
+      }
       if (e.key.toLowerCase() === 'a') {
         autostartToggle.checked = !autostartToggle.checked;
         e.preventDefault();
@@ -1796,25 +1985,30 @@ timerInterval = setInterval(tick, 1000);
       setTimerSizeFromSlider();
     });
 
-    // Live color binding for background/foreground/accent/warning/chroma
     bgColor.addEventListener('input', () => {
       applyBackgroundGradient(bgColor.value);
     });
 
+    if (gradientToggle) {
+      gradientToggle.addEventListener('change', () => {
+        applyBackgroundGradient(bgColor.value);
+      });
+    }
+
     fgColor.addEventListener('input', () => {
-      document.documentElement.style.setProperty('--fg', fgColor.value);
+      setThemeProperty('--timer-fg', fgColor.value, true);
     });
 
     accentColor.addEventListener('input', () => {
-      document.documentElement.style.setProperty('--accent', accentColor.value);
+      setThemeProperty('--progress-accent', accentColor.value, true);
     });
 
     warningColor.addEventListener('input', () => {
-      document.documentElement.style.setProperty('--warning', warningColor.value);
+      setThemeProperty('--warning', warningColor.value, true);
     });
 
     chromaColor.addEventListener('input', () => {
-      document.documentElement.style.setProperty('--chroma', chromaColor.value);
+      setThemeProperty('--chroma', chromaColor.value);
     });
 
     setUiScale();
@@ -1822,14 +2016,23 @@ timerInterval = setInterval(tick, 1000);
     timerEl.setAttribute('data-text', timerEl.textContent);
 
     warningColor.value = getComputedStyle(document.documentElement).getPropertyValue('--warning').trim();
+    accentColor.value = (getComputedStyle(document.documentElement).getPropertyValue('--progress-accent').trim() || '#ff4b4b');
     chromaColor.value = (getComputedStyle(document.documentElement).getPropertyValue('--chroma').trim() || '#00FF00');
+    applyModeDefaults();
+    syncResetDefaultsSize();
+    syncBottomPanelHeights();
 
-    window.addEventListener('resize', () => {
+    const handleViewportResize = () => {
       setUiScale();
       setTimerSizeFromSlider();
-    });
+      syncResetDefaultsSize();
+      syncBottomPanelHeights();
+    };
+    window.addEventListener('resize', handleViewportResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportResize);
+    }
 
-    // If fullscreen is lost unexpectedly, treat it like a stop
     document.addEventListener('fullscreenchange', () => {
       if (!document.fullscreenElement) {
         if (running || paused || body.classList.contains('hide-cursor') || queueActive || controls.classList.contains('hidden')) {
@@ -1844,7 +2047,6 @@ timerInterval = setInterval(tick, 1000);
       syncProgressUI();
     });
 
-    // Theme / mode toggles
     modeToggle.addEventListener('click', () => {
       body.classList.toggle('light');
       if (body.classList.contains('light')) {
@@ -1852,6 +2054,9 @@ timerInterval = setInterval(tick, 1000);
       } else {
         modeToggle.textContent = 'Light Mode';
       }
+      applyModeDefaults();
+      syncResetDefaultsSize();
+      syncBottomPanelHeights();
     });
 
     chromaModeToggle.addEventListener('click', () => {
@@ -1866,7 +2071,6 @@ timerInterval = setInterval(tick, 1000);
       }
     });
 
-    // Quick preset time buttons
     document.querySelectorAll('#presetTimes button').forEach(btn => {
       btn.addEventListener('click', () => {
         timeInput.value = formatTime(parseInt(btn.dataset.time));
@@ -1906,25 +2110,30 @@ timerInterval = setInterval(tick, 1000);
 
       timeInput.value = '';
       redThresholdSelect.value = '0';
-      autostartToggle.checked = false;
+      autostartToggle.checked = true;
       countUpToggle.checked = false;
       showProgressCheckbox.checked = false;
       showProgressCheckbox.disabled = false;
       syncProgressUI();
 
-      document.documentElement.style.setProperty('--bg', 'black');
-      document.documentElement.style.setProperty('--bg-dark-1', '#111827');
-      document.documentElement.style.setProperty('--bg-dark-2', '#020617');
-      document.documentElement.style.setProperty('--fg', 'white');
-      document.documentElement.style.setProperty('--accent', '#ff4b4b');
-      document.documentElement.style.setProperty('--warning', 'red');
-      document.documentElement.style.setProperty('--chroma', '#00FF00');
-      bgColor.value = '#000000';
-      fgColor.value = '#ffffff';
+      document.documentElement.style.removeProperty('--bg');
+      document.documentElement.style.removeProperty('--bg-dark-1');
+      document.documentElement.style.removeProperty('--bg-dark-2');
+      body.style.removeProperty('--bg');
+      body.style.removeProperty('--bg-dark-1');
+      body.style.removeProperty('--bg-dark-2');
+      document.documentElement.style.removeProperty('--fg');
+      body.style.removeProperty('--fg');
+      document.documentElement.style.removeProperty('--timer-fg');
+      body.style.removeProperty('--timer-fg');
+      setThemeProperty('--accent', '#4bb7ff', true);
+      setThemeProperty('--progress-accent', '#ff4b4b', true);
+      setThemeProperty('--warning', 'red', true);
+      setThemeProperty('--chroma', '#00FF00');
       accentColor.value = '#ff4b4b';
       warningColor.value = '#ff0000';
 
-      timerSizeSlider.value = '30';
+      timerSizeSlider.value = String(defaultTimerSize);
       setTimerSizeFromSlider();
       setUiScale();
 
@@ -1957,7 +2166,15 @@ timerInterval = setInterval(tick, 1000);
       renderQueue();
       modeToggle.textContent = 'Light Mode';
       chromaModeToggle.textContent = 'Chroma Mode';
+
+      if (gradientToggle) {
+        gradientToggle.checked = false;
+      }
+      applyModeDefaults();
+      syncResetDefaultsSize();
+      syncBottomPanelHeights();
     });
   </script>
 </body>
 </html>
+
