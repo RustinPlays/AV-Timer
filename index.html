@@ -1470,6 +1470,17 @@ select,
       return `${m}:${s}`;
     }
 
+    function syncHomePreviewFromInput() {
+      if (running || queueActive || queueAwaitingNext) return;
+      const raw = timeInput ? timeInput.value.trim() : '';
+      const seconds = parseTimeInput(raw);
+      const preview = seconds > 0 ? formatTime(seconds) : '00:00';
+      timerEl.textContent = preview;
+      timerEl.setAttribute('data-text', preview);
+      timerEl.classList.remove('warning');
+      timerEl.classList.add('white');
+    }
+
     function renderQueue() {
       if (!queueList) return;
       queueList.innerHTML = '';
@@ -1782,6 +1793,7 @@ timerInterval = setInterval(tick, 1000);
       renderQueue();
       await exitFullscreen();
 
+      syncHomePreviewFromInput();
       freshInput = true;
     }
 
@@ -1977,6 +1989,7 @@ timerInterval = setInterval(tick, 1000);
         } else {
           timeInput.value += e.key;
         }
+        syncHomePreviewFromInput();
         timeInput.focus();
       }
     });
@@ -1992,6 +2005,12 @@ timerInterval = setInterval(tick, 1000);
     if (gradientToggle) {
       gradientToggle.addEventListener('change', () => {
         applyBackgroundGradient(bgColor.value);
+      });
+    }
+
+    if (timeInput) {
+      timeInput.addEventListener('input', () => {
+        syncHomePreviewFromInput();
       });
     }
 
@@ -2021,6 +2040,7 @@ timerInterval = setInterval(tick, 1000);
     applyModeDefaults();
     syncResetDefaultsSize();
     syncBottomPanelHeights();
+    syncHomePreviewFromInput();
 
     const handleViewportResize = () => {
       setUiScale();
@@ -2057,6 +2077,7 @@ timerInterval = setInterval(tick, 1000);
       applyModeDefaults();
       syncResetDefaultsSize();
       syncBottomPanelHeights();
+      syncHomePreviewFromInput();
     });
 
     chromaModeToggle.addEventListener('click', () => {
@@ -2074,6 +2095,7 @@ timerInterval = setInterval(tick, 1000);
     document.querySelectorAll('#presetTimes button').forEach(btn => {
       btn.addEventListener('click', () => {
         timeInput.value = formatTime(parseInt(btn.dataset.time));
+        syncHomePreviewFromInput();
       });
     });
 
@@ -2173,6 +2195,7 @@ timerInterval = setInterval(tick, 1000);
       applyModeDefaults();
       syncResetDefaultsSize();
       syncBottomPanelHeights();
+      syncHomePreviewFromInput();
     });
   </script>
 </body>
