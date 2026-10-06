@@ -30,5 +30,5 @@
 @media(max-width:1150px){.topbar{align-items:flex-start}.topbar-actions{justify-content:flex-start}.topbar-brand{padding-top:2px}}
 @media(max-width:700px){.help-backdrop{padding:8px}.help-dialog{max-height:96vh}.help-choice-grid{grid-template-columns:1fr}.help-scroll{padding:13px}.topbar-actions .button-link,.topbar-actions button{font-size:.7rem;padding:7px 8px}}
 
-/* JC v4.8 branding */
+/* JC v4.9.2 branding */
 .topbar-brand{display:flex;align-items:center;gap:10px}.brand-logo{width:42px;height:42px;object-fit:contain;flex:0 0 42px}.brand-copy{min-width:0}.brand-copy h1{margin:1px 0 0}

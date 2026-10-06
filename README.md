@@ -1,17 +1,17 @@
-# JC AV Timer v4.8
+# JC AV Timer v4.9.2
 
 A show timer for AV / live-event use, hosted directly from GitHub Pages with an optional offline package and native Bitfocus Companion control.
 
 ## Downloads
 
-- **Offline App**: `downloads/JC-AV-Timer-Offline-v4.8.zip` — plain HTML/CSS/JS files, no EXE/CMD and no Windows Unblock step.
-- **Companion Module**: `downloads/JC-AV-Timer-Companion-0.6.0.tgz` — ready to import into Bitfocus Companion.
+- **Offline App**: `downloads/JC-AV-Timer-Offline-v4.9.2.zip` — plain HTML/CSS/JS files, no EXE/CMD and no Windows Unblock step.
+- **Companion Module**: `downloads/JC-AV-Timer-Companion-0.7.0.tgz` — ready to import into Bitfocus Companion.
 
 ## Companion
 
 Open **Help** on the operator page for first-time setup. Search `JC` in Companion. Preset groups are Control, Add, Remove, Start, Set, Queue and Queue Add.
 
-The v0.6.0 Companion module maintains live TIMER / HH / MM / SS and feedback from wall-clock anchors inside Companion, so the Stream Deck display keeps updating even when the browser window is unfocused.
+The v0.7.0 Companion module maintains live TIMER / HH / MM / SS and feedback from wall-clock anchors inside Companion, so the Stream Deck display keeps updating even when the browser window is unfocused.
 
 ## Background timing
 

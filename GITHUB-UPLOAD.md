@@ -15,3 +15,6 @@ The important files/folders are:
 GitHub Pages can serve the timer directly. No server-side code is required.
 
 The `downloads/` folder contains the offline timer ZIP and the ready-to-import Companion module so the buttons in the top bar work from the published site.
+
+
+The Download App button serves `downloads/JC-AV-Timer-Offline-v4.9.2.zip`. The offline package opens through `Open AV Timer App.html`.

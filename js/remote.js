@@ -1,13 +1,14 @@
 (() => {
   const DEFAULT_PORT = 3210;
-  const OFFLINE_GRACE_MS = 15000;
+  const OFFLINE_GRACE_MS = 60000;
   const REQUEST_TIMEOUT_MS = 5000;
   const LONG_POLL_TIMEOUT_MS = 25000;
   const LONG_POLL_WAIT_MS = 20000;
+  const STATE_SEND_INTERVAL_MS = 500;
 
-  let port = normalizePort(localStorage.getItem('jocCompanionPort') || DEFAULT_PORT);
+  let port = normalizePort(localStorage.getItem('jcCompanionPort') || localStorage.getItem('jocCompanionPort') || DEFAULT_PORT);
   let base = `http://127.0.0.1:${port}`;
-  let lastId = Number(sessionStorage.getItem('jocAvTimerRemoteLastId') || 0);
+  let lastId = Number(sessionStorage.getItem('jcAvTimerRemoteLastId') || sessionStorage.getItem('jocAvTimerRemoteLastId') || 0);
   let initialized = false;
   let online = false;
   let stateTimer = null;
@@ -15,6 +16,8 @@
   let sendingState = false;
   let lastSuccessAt = 0;
   let loopGeneration = 0;
+  let stateFlushTimer = null;
+  let lastStateSendAt = 0;
 
   const listeners = new Set();
   const statusListeners = new Set();
@@ -66,7 +69,7 @@
     if (!initialized) {
       if (!lastId) lastId = Number(data.latestId || 0);
       initialized = true;
-      sessionStorage.setItem('jocAvTimerRemoteLastId', String(lastId));
+      sessionStorage.setItem('jcAvTimerRemoteLastId', String(lastId));
     }
     markSuccess();
     return data;
@@ -91,13 +94,23 @@
             try { fn(evt); } catch (err) { console.error('Companion command error', err); }
           });
         }
-        sessionStorage.setItem('jocAvTimerRemoteLastId', String(lastId));
+        sessionStorage.setItem('jcAvTimerRemoteLastId', String(lastId));
       } catch {
         if (generation !== loopGeneration) return;
         markFailure();
         await sleep(750);
       }
     }
+  }
+
+  function scheduleStateFlush(delay = null) {
+    if (stateFlushTimer) return;
+    const elapsed = Date.now() - lastStateSendAt;
+    const wait = delay === null ? Math.max(0, STATE_SEND_INTERVAL_MS - elapsed) : Math.max(0, delay);
+    stateFlushTimer = setTimeout(() => {
+      stateFlushTimer = null;
+      flushState();
+    }, wait);
   }
 
   async function flushState() {
@@ -113,6 +126,7 @@
         keepalive: true
       }));
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      lastStateSendAt = Date.now();
       markSuccess();
     } catch {
       // Keep only the newest state. The next successful request will resync it.
@@ -120,6 +134,7 @@
       markFailure();
     } finally {
       sendingState = false;
+      if (pendingState) scheduleStateFlush();
     }
   }
 
@@ -127,8 +142,8 @@
     const generation = ++loopGeneration;
     pollForever(generation);
     if (!stateTimer) {
-      flushState();
-      stateTimer = setInterval(flushState, 750);
+      scheduleStateFlush(0);
+      stateTimer = setInterval(() => { if (pendingState) scheduleStateFlush(0); }, 1000);
     }
   }
 
@@ -136,10 +151,12 @@
     ++loopGeneration;
     if (stateTimer) clearInterval(stateTimer);
     stateTimer = null;
+    if (stateFlushTimer) clearTimeout(stateFlushTimer);
+    stateFlushTimer = null;
     initialized = false;
     lastId = 0;
     lastSuccessAt = 0;
-    sessionStorage.setItem('jocAvTimerRemoteLastId', '0');
+    sessionStorage.setItem('jcAvTimerRemoteLastId', '0');
     notify(false);
     start();
   }
@@ -149,7 +166,7 @@
   function setPort(value) {
     port = normalizePort(value);
     base = `http://127.0.0.1:${port}`;
-    try { localStorage.setItem('jocCompanionPort', String(port)); } catch {}
+    try { localStorage.setItem('jcCompanionPort', String(port)); } catch {}
     restart();
     return port;
   }
@@ -165,9 +182,9 @@
 
   function publishState(state) {
     pendingState = state;
-    // Send important state changes immediately; the timer's wall-clock anchors
-    // mean Companion does not need a browser POST every second to keep counting.
-    flushState();
+    // Timer ticks can fire very frequently. Companion derives the live countdown
+    // from the wall-clock anchor, so cap browser -> Companion state traffic.
+    scheduleStateFlush();
   }
 
   window.addEventListener('focus', () => { bootstrap().catch(markFailure); flushState(); });

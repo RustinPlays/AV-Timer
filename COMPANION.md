@@ -1,7 +1,7 @@
 # Connect Bitfocus Companion
 
-1. Download `downloads/JC-AV-Timer-Companion-0.6.0.tgz`.
-2. In Companion open **Modules → Import custom module/package** and choose `JC-AV-Timer-Companion-0.6.0.tgz`.
+1. Download `downloads/JC-AV-Timer-Companion-0.7.0.tgz`.
+2. In Companion open **Modules → Import custom module/package** and choose `JC-AV-Timer-Companion-0.7.0.tgz`.
 3. Open **Connections → Add connection**.
 4. Search **JC** and add **JC - AV Timer**.
 5. Leave the local timer API port at **3210** and enable/save the connection.
