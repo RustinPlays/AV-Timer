@@ -68,6 +68,7 @@ The latest host `state` packet is persisted in the room Durable Object so reconn
 
 ## Security / limits
 
+
 - Room tokens are SHA-256 hashed before being stored in the Durable Object.
 - Only one host is authoritative per room; a new valid host connection replaces the old host connection.
 - WebSocket payloads are limited to 256 KiB.
