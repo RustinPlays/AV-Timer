@@ -5,168 +5,182 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#08111f">
   <title>JC AV Timer — Operator</title>
-    <link rel="icon" href="icons/icon-192.png">
-    <link rel="stylesheet" href="css/app.css">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/app.css">
 </head>
 <body class="operator-body">
-  <header class="topbar">
-    <div class="topbar-brand">
-      <img class="brand-logo" src="assets/jc-logo.png" alt="JC logo">
-      <div class="brand-copy"><div class="eyebrow">JC · AV TIMER</div><h1>Operator</h1></div>
-    </div>
-    <div class="topbar-actions">
+<header class="topbar">
+  <div class="topbar-brand">
+    <img class="brand-logo" src="assets/jc-logo.png" alt="JC logo">
+    <div class="brand-copy"><div class="eyebrow">JC · AV TIMER</div><h1>Operator</h1></div>
+  </div>
+  <div class="topbar-groups">
+    <div class="topbar-group status-group" aria-label="Status">
       <span id="runStatus" class="status-pill idle">Ready</span>
       <span id="bridgeStatus" class="status-pill offline">Companion offline</span>
-      <a class="button-link secondary-btn" data-app-download href="downloads/JC-AV-Timer-Offline-v4.9.2.zip" download>Download App</a>
-      <a class="button-link secondary-btn" data-companion-download href="downloads/JC-AV-Timer-Companion-0.7.0.tgz" download>Companion Module</a>
-      <button id="helpBtn" class="secondary-btn">Help</button>
-      <button id="outputHereBtn" class="secondary-btn">Output Here</button>
-      <button id="openOutputBtn" class="primary-btn">Open Output</button>
     </div>
-  </header>
+    <div class="topbar-group download-group" aria-label="Downloads">
+      <a class="button-link secondary-btn" data-app-download href="downloads/JC-AV-Timer-Offline-v4.9.2.zip" download>Download Offline App</a>
+      <a class="button-link secondary-btn" data-companion-download href="downloads/JC-AV-Timer-Companion-0.7.0.tgz" download>Download Companion Module</a>
+    </div>
+    <div class="topbar-group output-group" aria-label="Output">
+      <button id="outputHereBtn" class="secondary-btn">Display Timer Here</button>
+      <button id="openOutputBtn" class="primary-btn">Open External Timer Window</button>
+    </div>
+    <button id="shortcutBtn" class="icon-btn" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">⌨</button>
+    <button id="helpBtn" class="help-main-btn">? Help</button>
+  </div>
+</header>
 
-  <main class="operator-grid">
-    <section class="left-stack">
-      <section class="panel rundown-panel">
-        <div class="panel-title-row">
-          <div><div class="panel-kicker">RUN OF SHOW</div><h2>Timer Queue</h2></div>
-          <label class="switch-label"><input id="queueToggle" type="checkbox"><span>Enable</span></label>
-        </div>
-        <div id="queueBody" class="queue-body hidden">
-          <div class="queue-input-row"><input id="queueTimeInput" type="text" placeholder="5:00" aria-label="Queue duration"><button id="queueAddBtn">Add</button></div>
-          <ul id="queueList"></ul>
-          <label class="switch-label inline"><input id="autoNextToggle" type="checkbox"><span>Auto next</span></label>
-          <div class="queue-actions"><button id="startQueueBtn" class="secondary-btn">Start Queue</button><button id="removeLastQueueBtn">Remove Last</button><button id="clearQueueBtn" class="ghost-btn">Clear</button></div>
-        </div>
-        <div id="queueDisabledHint" class="muted-copy">Enable the queue to build a sequence of timers.</div>
-      </section>
-
-      <section class="panel appearance-panel">
-        <div class="panel-kicker">OUTPUT</div><h2>Appearance</h2>
-        <div class="appearance-grid">
-          <label>Background<input id="bgColor" type="color" value="#00324b"></label>
-          <label>Timer<input id="fgColor" type="color" value="#f5f5f5"></label>
-          <label>Progress<input id="accentColor" type="color" value="#ff4b4b"></label>
-          <label>TIME<input id="timeColor" type="color" value="#ff0000"></label>
-        </div>
-        <label class="range-row">Timer size <input id="timerSizeSlider" type="range" min="60" max="200" value="100"></label>
-        <div class="size-preset-row" aria-label="Timer size presets">
-          <button data-output-scale="0.75">Small</button><button data-output-scale="1">Medium</button><button data-output-scale="1.25">Large</button><button data-output-scale="1.5">XL</button><button data-output-scale="1.8">XXL</button>
-        </div>
-        <div class="appearance-buttons">
-          <button id="modeToggle">Light Output</button><button id="minimalModeToggle">Minimal</button><button id="chromaModeToggle">Chroma</button>
-        </div>
-        <div class="toggle-grid compact-grid">
-          <label class="toggle"><input id="showProgressCheckbox" type="checkbox"><span>Progress bar</span></label>
-          <label class="toggle"><input id="gradientToggle" type="checkbox" checked><span>Gradient</span></label>
-        </div>
-      </section>
-
-      <section class="panel warning-panel">
-        <div class="panel-title-row">
-          <div><div class="panel-kicker">CUSTOM WARNINGS</div><h2>Warning Stages</h2></div>
-          <div class="warning-heading-actions"><label class="switch-label"><input id="warningsToggle" type="checkbox" checked><span>Enable</span></label><button id="addWarningRuleBtn" class="small-btn">+ Add</button></div>
-        </div>
-        <p class="muted-copy warning-help">Build as many warning stages as you need. The most urgent matching enabled stage wins.</p>
-        <div id="warningRulesList" class="warning-rules"></div>
-      </section>
+<main class="operator-grid compact-layout">
+  <section class="left-stack">
+    <section class="panel rundown-panel">
+      <div class="panel-title-row"><div><div class="panel-kicker">RUN OF SHOW</div><h2>Timer Queue</h2></div><button class="panel-help" data-help="queue" aria-label="Queue help">?</button></div>
+      <div class="queue-input-grid">
+        <label>Duration<input id="queueTimeInput" type="text" placeholder="15:00 or 15.00" aria-label="Queue duration"></label>
+        <label>Cue label<input id="queueLabelInput" type="text" placeholder="Keynote"></label>
+        <button id="queueAddBtn" class="primary-btn">Add Cue</button>
+      </div>
+      <ul id="queueList"></ul>
+      <div class="queue-actions"><button id="clearQueueBtn" class="ghost-btn">Clear Queue</button></div>
     </section>
 
-    <section class="center-stack">
-      <section class="panel transport-panel">
-        <div class="transport-heading">
-          <div><div class="panel-kicker">LIVE TIMER</div><div id="operatorTimer" class="operator-timer">00:00</div></div>
-          <div class="operator-state-wrap"><div id="operatorWarning" class="operator-warning hidden"></div><div id="operatorStateText" class="operator-state">READY</div></div>
-        </div>
-        <div class="timer-entry-row">
-          <div class="duration-entry"><label for="timeInput">Duration</label><input id="timeInput" class="time-input" type="text" inputmode="numeric" placeholder="MM:SS or HH:MM:SS" autocomplete="off"></div>
-          <label class="toggle slim"><input id="countUpToggle" type="checkbox"><span>Count up</span></label>
-          <label class="toggle slim"><input id="autostartToggle" type="checkbox" checked><span>Auto start</span></label>
-        </div>
-        <div id="presetTimes" class="preset-row" aria-label="Set timer presets">
-          <button data-seconds="60">1m</button><button data-seconds="120">2m</button><button data-seconds="300">5m</button><button data-seconds="600">10m</button><button data-seconds="900">15m</button><button data-seconds="1200">20m</button><button data-seconds="1800">30m</button><button data-seconds="2700">45m</button><button data-seconds="3600">60m</button>
-        </div>
-        <div class="transport-buttons">
-          <button id="startBtn" class="transport start">Start</button><button id="pauseBtn" class="transport pause">Pause</button><button id="resetRunBtn" class="transport">Reset</button><button id="stopBtn" class="transport stop">Stop</button><button id="nextTimerButton" class="transport next hidden">Next</button>
-        </div>
-      </section>
+    <section class="panel appearance-panel">
+      <div class="panel-title-row"><div><div class="panel-kicker">OUTPUT</div><h2>Appearance</h2></div><button class="panel-help" data-help="appearance" aria-label="Appearance help">?</button></div>
+      <div class="appearance-grid">
+        <label>Background<input id="bgColor" type="color" value="#00324b"></label>
+        <label>Timer<input id="fgColor" type="color" value="#f5f5f5"></label>
+        <label>Progress<input id="accentColor" type="color" value="#ff4b4b"></label>
+        <label>Overtime<input id="timeColor" type="color" value="#ff3030"></label>
+      </div>
+      <label class="range-row">Timer size <input id="timerSizeSlider" type="range" min="60" max="200" value="100"></label>
+      <div class="size-preset-row"><button data-output-scale="0.75">Small</button><button data-output-scale="1">Medium</button><button data-output-scale="1.25">Large</button><button data-output-scale="1.5">XL</button><button data-output-scale="1.8">XXL</button></div>
 
-      <section class="panel adjust-panel">
-        <div class="panel-title-row"><div><div class="panel-kicker">LIVE CONTROL</div><h2>Add / Remove Time</h2></div><span class="muted-copy small">UI · Companion</span></div>
+      <div class="appearance-mode-row">
+        <button id="modeToggle">Light Mode</button>
+        <button id="minimalPresetBtn">Minimal Preset</button>
+        <button id="chromaModeToggle">Chroma</button>
+      </div>
+      <div id="chromaOptions" class="chroma-options hidden">
+        <label>Chroma colour<input id="chromaColor" type="color" value="#00ff00"></label>
+        <button id="chromaInvertBtn">Invert Text / Outline</button>
+      </div>
+
+      <div class="toggle-grid compact-grid">
+        <label class="toggle"><input id="showProgressCheckbox" type="checkbox"><span>Progress bar</span></label>
+        <label class="toggle"><input id="gradientToggle" type="checkbox" checked><span>Gradient</span></label>
+        <label class="toggle"><input id="shadowToggle" type="checkbox" checked><span>Drop shadow</span></label>
+      </div>
+
+      <div class="font-controls">
+        <label>Font<select id="fontSelect"><option value="Inter">Inter</option><option value="Arial">Arial</option><option value="Helvetica">Helvetica</option><option value="Verdana">Verdana</option><option value="Tahoma">Tahoma</option><option value="Trebuchet MS">Trebuchet MS</option><option value="Georgia">Georgia</option><option value="Courier New">Courier New</option><option value="Impact">Impact</option><option value="system-ui">System UI</option></select></label>
+        <label>Weight<select id="fontWeight"><option value="500">Medium</option><option value="600">Semi Bold</option><option value="700">Bold</option><option value="800">Extra Bold</option><option value="900" selected>Black</option></select></label>
+        <div class="font-buttons"><label class="file-button">Upload Font<input id="customFontInput" type="file" accept=".ttf,.woff,.woff2,font/ttf,font/woff,font/woff2"></label><button id="resetFontBtn">Reset Font</button></div>
+        <div id="fontStatus" class="muted-copy small">Built-in font</div>
+      </div>
+    </section>
+
+    <section class="panel warning-panel">
+      <div class="panel-title-row">
+        <div><div class="panel-kicker">AUTOMATIC</div><h2>Warning Stages</h2></div>
+        <div class="warning-heading-actions"><label class="switch-label"><input id="warningsToggle" type="checkbox" checked><span>Enable</span></label><button id="addWarningRuleBtn" class="small-btn">+ Add</button><button class="panel-help" data-help="warnings">?</button></div>
+      </div>
+      <div id="warningRulesList" class="warning-rules"></div>
+    </section>
+  </section>
+
+  <section class="center-stack">
+    <section class="panel transport-panel">
+      <div class="panel-title-row"><div><div class="panel-kicker">LIVE TIMER</div></div><button class="panel-help" data-help="timer">?</button></div>
+      <div class="transport-heading">
+        <div id="operatorTimer" class="operator-timer">00:00</div>
+        <div class="operator-state-wrap"><div id="operatorWarning" class="operator-warning hidden"></div><div id="operatorStateText" class="operator-state">READY</div></div>
+      </div>
+      <div class="timer-entry-row">
+        <div class="duration-entry"><label for="timeInput">Duration</label><input id="timeInput" class="time-input" type="text" inputmode="text" placeholder="MM:SS, HH:MM:SS, or use ." autocomplete="off"></div>
+        <label class="toggle slim"><input id="countUpToggle" type="checkbox"><span>Count up</span></label>
+        <label class="toggle slim"><input id="autostartToggle" type="checkbox" checked><span>Auto start</span></label>
+      </div>
+      <div class="control-subheading">SET TIMER</div>
+      <div id="presetTimes" class="preset-row">
+        <button data-seconds="60">1m</button><button data-seconds="120">2m</button><button data-seconds="300">5m</button><button data-seconds="600">10m</button><button data-seconds="900">15m</button><button data-seconds="1800">30m</button><button data-seconds="2700">45m</button><button data-seconds="3600">60m</button>
+      </div>
+      <div class="transport-buttons">
+        <button id="startPauseBtn" class="transport start">Start</button>
+        <button id="resetRunBtn" class="transport">Reset</button>
+        <button id="stopBtn" class="transport stop">Stop</button>
+        <button id="nextTimerButton" class="transport next" disabled>Next Cue</button>
+      </div>
+      <div class="attention-row"><button id="flashTimerBtn">Flash Timer: Off</button></div>
+
+      <div class="adjust-inline">
+        <div class="panel-title-row"><div><div class="control-subheading">ADJUST RUNNING TIMER</div></div><button class="panel-help" data-help="adjust">?</button></div>
         <div class="adjust-block"><span class="adjust-label add">ADD</span><div id="addButtons" class="adjust-row"></div></div>
         <div class="adjust-block"><span class="adjust-label subtract">REMOVE</span><div id="subtractButtons" class="adjust-row"></div></div>
-      </section>
-
-      <section class="panel shortcuts-panel"><div class="panel-kicker">KEYBOARD</div><div class="shortcut-line"><span><kbd>Enter</kbd> Start</span><span><kbd>Space</kbd> Pause / Resume</span><span><kbd>R</kbd> Reset</span><span><kbd>Esc</kbd> Stop</span></div></section>
+      </div>
     </section>
 
-    <section class="right-stack">
-      <section class="panel output-monitor-panel">
-        <div class="panel-title-row"><div><div class="panel-kicker">PROGRAM</div><h2>Output Monitor</h2></div><span id="outputWindowStatus" class="status-pill idle">Preview only</span></div>
-        <div class="preview-frame-shell"><iframe id="previewFrame" src="output.html?preview=1" title="Live output preview"></iframe></div>
-
-        <div class="display-control-block">
-          <div class="display-control-heading">External Display</div>
-          <div class="display-select-row"><select id="displaySelect"><option value="auto">Auto / secondary display</option></select><button id="detectDisplaysBtn">Detect</button></div>
-          <div class="display-actions primary-row"><button id="displayOpenBtn" class="primary-btn">Open</button><button id="focusOutputBtn">Focus</button><button id="closeOutputBtn">Close</button></div>
-          <div class="display-actions single-action"><button id="refreshPreviewBtn">Refresh PiP</button></div>
-          <div id="displayHint" class="muted-copy display-hint">Open and place the output on the required display. Move the mouse into the output window's bottom-right corner to reveal Fullscreen / Exit Fullscreen.</div>
-        </div>
-      </section>
-
-      <section class="panel companion-quick-panel">
-        <div class="panel-title-row"><div><div class="panel-kicker">INTEGRATION</div><h2>Companion</h2></div><button id="companionHelpBtn" class="small-btn">Setup Help</button></div>
-        <div class="companion-quick-status"><span>Local API</span><strong>127.0.0.1:<span id="quickPortLabel">3210</span></strong></div>
-        <div class="muted-copy">The blue status pill in the top bar means the timer webpage/app and JC Companion module are talking to each other.</div>
-      </section>
-
-      <section class="panel utility-panel"><div class="panel-kicker">UTILITY</div><div class="utility-actions"><button id="resetDefaultsBtn" class="ghost-btn">Reset Defaults</button><a class="button-link" href="output.html" target="_blank" rel="noopener">Open Output Tab</a></div></section>
+    <section class="panel presenter-panel">
+      <div class="panel-title-row"><div><div class="panel-kicker">PRESENTER</div><h2>Presenter Message</h2></div><button class="panel-help" data-help="messages">?</button></div>
+      <textarea id="messageInput" rows="3" placeholder="Type anything you need the presenter to see…"></textarea>
+      <div class="message-main-actions"><button id="sendMessageBtn" class="primary-btn">Send / Update</button><button id="bannerToggleBtn">Hide Banner</button><button id="clearMessageBtn">Clear</button><button id="flashMessageBtn">Flash Message: Off</button></div>
+      <div class="message-presets" id="messagePresets">
+        <button data-message="Please wrap up soon">Wrap Up Soon</button>
+        <button data-message="Please wrap up now">Wrap Up Now</button>
+        <button data-message="Please wait">Please Wait</button>
+        <button data-message="Please speak louder">Speak Louder</button>
+        <button data-message="Please move closer to the microphone">Move Closer to Mic</button>
+        <button data-message="Thank you">Thank You</button>
+      </div>
+      <div class="muted-copy small">Manual presenter messages override automatic warnings while a message is set.</div>
     </section>
-  </main>
+  </section>
 
-  <section id="localOutputOverlay" class="local-output-overlay hidden"><iframe src="output.html" title="Local output"></iframe></section>
+  <section class="right-stack">
+    <section class="panel output-monitor-panel">
+      <div class="panel-title-row"><div><div class="panel-kicker">PROGRAM</div><h2>Output Monitor</h2></div><div class="inline-heading-actions"><span id="outputWindowStatus" class="status-pill idle">Preview only</span><button class="panel-help" data-help="output">?</button></div></div>
+      <div class="preview-frame-shell"><iframe id="previewFrame" src="output.html?preview=1" title="Live output preview"></iframe></div>
+      <div class="display-actions primary-row"><button id="displayOpenBtn" class="primary-btn">Open External Timer Window</button><button id="focusOutputBtn">Focus Window</button><button id="closeOutputBtn">Close Window</button></div>
+      <div class="display-actions single-action"><button id="refreshPreviewBtn">Refresh PiP</button></div>
+    </section>
 
-  <div id="helpModal" class="help-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
-    <div class="help-dialog">
-      <div class="help-header"><div><div class="panel-kicker">JC · AV TIMER</div><h2 id="helpTitle">Help & Setup</h2></div><button id="helpCloseBtn" class="help-close" aria-label="Close help">×</button></div>
+    <section id="remoteViewerAnchor" class="panel remote-placeholder">
+      <div class="muted-copy">Remote Viewer controls load here.</div>
+    </section>
+  </section>
+</main>
+
+<section id="localOutputOverlay" class="local-output-overlay hidden"><iframe src="output.html" title="Local output"></iframe></section>
+
+<div id="shortcutModal" class="mini-backdrop hidden" role="dialog" aria-modal="true"><div class="mini-dialog"><div class="help-header"><h2>Keyboard Shortcuts</h2><button id="shortcutCloseBtn" class="help-close">×</button></div><div class="shortcut-grid"><span><kbd>Space</kbd> Start / Pause</span><span><kbd>R</kbd> Reset</span><span><kbd>Esc</kbd> Stop</span><span><kbd>N</kbd> Next Cue</span></div></div></div>
+
+<div id="contextHelpModal" class="mini-backdrop hidden" role="dialog" aria-modal="true"><div class="mini-dialog"><div class="help-header"><h2 id="contextHelpTitle">Help</h2><button id="contextHelpCloseBtn" class="help-close">×</button></div><div id="contextHelpBody" class="context-help-body"></div></div></div>
+
+<div id="helpModal" class="help-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="help-dialog">
+    <div class="help-header"><div><div class="panel-kicker">JC · AV TIMER</div><h2 id="helpTitle">Help & Setup</h2></div><button id="helpCloseBtn" class="help-close" aria-label="Close help">×</button></div>
+    <div class="help-layout">
+      <nav class="help-index">
+        <button data-help-target="getting-started">Getting Started</button><button data-help-target="timer-help">Live Timer</button><button data-help-target="queue-help">Queue</button><button data-help-target="message-help">Presenter Messages</button><button data-help-target="warnings-help">Warnings</button><button data-help-target="appearance-help">Appearance</button><button data-help-target="output-help">Output</button><button data-help-target="remote-help">Remote Viewer</button><button data-help-target="companion-help">Companion</button><button data-help-target="offline-help">Offline App</button><button data-help-target="shortcuts-help">Shortcuts</button><button data-help-target="troubleshooting-help">Troubleshooting</button>
+      </nav>
       <div class="help-scroll">
-        <section class="help-section">
-          <h3>Connect Bitfocus Companion</h3>
-          <ol class="companion-steps">
-            <li><b>Download the module.</b> Use <b>Companion Module</b> in the top bar below, or the button here: <a class="inline-download" data-companion-download href="downloads/JC-AV-Timer-Companion-0.7.0.tgz" download>Download JC Companion Module</a>.</li>
-            <li><b>Import it.</b> In Companion open <b>Modules</b> → <b>Import custom module/package</b> and choose <code>JC-AV-Timer-Companion-0.7.0.tgz</code>.</li>
-            <li><b>Add the connection.</b> Open <b>Connections</b> → <b>Add connection</b>, search <b>JC</b>, then choose <b>JC - AV Timer</b>.</li>
-            <li><b>Keep the Local browser API port at 3210</b> unless something else is already using it. Save/enable the connection.</li>
-            <li><b>Keep Companion and this operator timer open on the same laptop.</b> The webpage can still come directly from GitHub.</li>
-            <li><b>Test it below.</b> The top status should settle on <b>Companion connected</b>.</li>
-            <li><b>Add Stream Deck buttons.</b> In Companion Presets search <b>JC</b>. You will find live TIMER / HH / MM / SS displays, transport, quick Add / Remove / Start / Set presets, Queue controls, and single-toggle display features with live ON/OFF feedback.</li>
-          </ol>
-          <div class="companion-test-box">
-            <label class="bridge-address-label" for="companionPort">Local API port</label>
-            <div class="bridge-address-row"><input id="companionPort" type="number" min="1" max="65535" value="3210"><button id="saveCompanionBtn">Save Port</button><button id="testCompanionBtn" class="primary-btn">Test Companion</button></div>
-            <div id="bridgeConnectionHint" class="muted-copy bridge-hint">If you did not change the port in Companion, leave this at 3210.</div>
-          </div>
-        </section>
-        <section class="help-section">
-          <h3>Offline App</h3>
-          <p>The GitHub page is the normal online version. Use <b>Download App</b> if you need the timer with no internet connection.</p>
-          <p>The offline ZIP contains only normal HTML/CSS/JavaScript files plus the Companion module. There is no EXE, MSI, CMD, BAT or PowerShell launcher, so there is no Windows executable to unblock. Extract it and double-click <b>JC AV Timer.html</b>.</p>
-          <a class="button-link" data-app-download href="downloads/JC-AV-Timer-Offline-v4.9.2.zip" download>Download App</a>
-        </section>
-
-        <section class="help-section">
-          <h3>External Display</h3>
-          <p>Use <b>Open Output</b>, move the output window to the second display, then move your mouse into the <b>bottom-right corner of the output</b>. The Fullscreen / Exit Fullscreen button appears only while you hover there.</p>
-        </section>
-
-        <section class="help-section">
-          <h3>If Companion will not connect</h3>
-          <p>Make sure Companion is running, the <b>JC - AV Timer</b> connection is enabled, the ports match, and Edge/Chrome is allowed to access localhost/local-network services if it asks. Only one JC module connection can listen on the same port at a time.</p>
-        </section>
+        <section id="getting-started" class="help-section"><h3>Getting Started</h3><p>Enter a duration or choose a preset, then press Start. Start changes to Pause while running. Reset returns to the loaded duration. Stop sets the timer to zero.</p></section>
+        <section id="timer-help" class="help-section"><h3>Live Timer</h3><p>Duration accepts colons or periods, so <code>8:00</code> and <code>8.00</code> both mean eight minutes. Countdown continues below zero in red until stopped, reset, or another cue is started.</p></section>
+        <section id="queue-help" class="help-section"><h3>Timer Queue</h3><p>Add a duration and optional cue label. Use Play on any row to jump directly to it. Next Cue advances manually; there is no automatic follow.</p></section>
+        <section id="message-help" class="help-section"><h3>Presenter Messages</h3><p>Type any message and send it to the lower-third banner. Show/Hide keeps the message stored, Clear removes it, and Flash Message attracts attention without affecting the timer.</p></section>
+        <section id="warnings-help" class="help-section"><h3>Warnings</h3><p>Warnings automatically change the timer colour and use the same banner area. Manual presenter messages take priority. Every warning can have its own threshold, wording and colour.</p></section>
+        <section id="appearance-help" class="help-section"><h3>Appearance</h3><p>Dark/colour mode uses your selected colours. Light mode is a fixed light look; changing a colour automatically returns to colour mode. Chroma forces a flat key colour, disables gradients and shadow, and uses a hard outline.</p></section>
+        <section id="output-help" class="help-section"><h3>Output</h3><p>Display Timer Here takes over the current browser window. Open External Timer Window creates a separate clean output you can move to another display. Hover the bottom-right of the output for Fullscreen.</p></section>
+        <section id="remote-help" class="help-section"><h3>Remote Viewer</h3><p>Start Remote Viewer hosting on this page with a username and password. Viewers open <b>relay.justincreative.tech</b>, enter the same details, and see the clean timer output over the internet.</p></section>
+        <section id="companion-help" class="help-section"><h3>Bitfocus Companion</h3><p>Download the Companion module from the top bar. In Companion use Modules → Import custom module/package, then add <b>JC - AV Timer</b>. Keep the local API port at 3210 unless you deliberately change it.</p><div class="companion-test-box"><label class="bridge-address-label" for="companionPort">Local API port</label><div class="bridge-address-row"><input id="companionPort" type="number" min="1" max="65535" value="3210"><button id="saveCompanionBtn">Save Port</button><button id="testCompanionBtn" class="primary-btn">Test Companion</button></div><div id="bridgeConnectionHint" class="muted-copy bridge-hint">If you did not change the port in Companion, leave this at 3210.</div></div></section>
+        <section id="offline-help" class="help-section"><h3>Offline App</h3><p>The offline package runs without internet. It can still use Companion locally and can work on a local Ethernet/Wi-Fi network. Internet Remote Viewer requires internet access.</p></section>
+        <section id="shortcuts-help" class="help-section"><h3>Keyboard Shortcuts</h3><p><kbd>Space</kbd> Start/Pause · <kbd>R</kbd> Reset · <kbd>Esc</kbd> Stop · <kbd>N</kbd> Next Cue.</p></section>
+        <section id="troubleshooting-help" class="help-section"><h3>Troubleshooting & Reset</h3><p>If the PiP looks stale, use Refresh PiP. If Companion is offline, check that the JC module is enabled and the port matches. Settings, queue, active timer and messages automatically recover after an accidental refresh.</p><button id="resetDefaultsBtn" class="danger-outline">Reset Everything to Defaults</button></section>
       </div>
     </div>
   </div>
+</div>
 
-  <script src="js/timer.js"></script><script src="js/sync.js"></script><script src="js/remote.js"></script><script src="js/app.js"></script><script src="js/desktop.js"></script>
+<script src="js/timer.js"></script><script src="js/sync.js"></script><script src="js/remote.js"></script><script src="js/app.js"></script><script src="js/desktop.js"></script>
 </body>
 </html>

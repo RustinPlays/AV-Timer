@@ -10,15 +10,13 @@
 </head>
 <body class="output-body">
   <main id="outputStage" class="output-stage">
-    <div id="outputWarningLabel" class="output-warning-label hidden"></div>
     <div id="outputTimer" class="output-timer" data-text="00:00">00:00</div>
     <div id="outputPaused" class="output-paused hidden">PAUSED</div>
-    <div id="outputFinished" class="output-finished hidden">TIME</div>
+    <div id="outputFinished" class="output-finished hidden">OVERTIME</div>
     <div id="outputProgress" class="output-progress hidden"><div id="outputProgressBar"></div></div>
+    <div id="outputBanner" class="output-banner hidden"><span id="outputBannerText"></span></div>
   </main>
-  <div id="fullscreenHotspot" class="fullscreen-hotspot" aria-label="Fullscreen controls">
-    <button id="outputFullscreenBtn" class="output-fullscreen-btn" type="button">Fullscreen</button>
-  </div>
+  <div id="fullscreenHotspot" class="fullscreen-hotspot" aria-label="Fullscreen controls"><button id="outputFullscreenBtn" class="output-fullscreen-btn" type="button">Fullscreen</button></div>
   <script src="js/sync.js"></script><script src="js/output.js"></script>
 </body>
 </html>
