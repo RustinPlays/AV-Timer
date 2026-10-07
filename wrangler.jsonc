@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "av-timer-relay",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-07",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "TIMER_ROOMS",
+        "class_name": "TimerRoom"
+      }
+    ]
+  },
+  "exports": {
+    "TimerRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  },
+  "observability": {
+    "enabled": true
+  }
+}

@@ -1,18 +1,75 @@
-# JC AV Timer v4.9.2
+# AV Timer Relay
 
-A show timer for AV / live-event use, hosted directly from GitHub Pages with an optional offline package and native Bitfocus Companion control.
+Cloudflare Worker + Durable Object relay for AV Timer remote/online sync.
 
-## Downloads
+This service is only for **Remote / Online** connections. AV Timer Desktop's Standalone and Local LAN modes should not depend on this Worker or on an internet connection.
 
-- **Offline App**: `downloads/JC-AV-Timer-Offline-v4.9.2.zip` — plain HTML/CSS/JS files, no EXE/CMD and no Windows Unblock step.
-- **Companion Module**: `downloads/JC-AV-Timer-Companion-0.7.0.tgz` — ready to import into Bitfocus Companion.
+## Cloudflare build settings
 
-## Companion
+Connect the existing `av-timer-relay` Worker to the `RustinPlays/AV-Timer` repository using:
 
-Open **Help** on the operator page for first-time setup. Search `JC` in Companion. Preset groups are Control, Add, Remove, Start, Set, Queue and Queue Add.
+- Production branch: `main`
+- Path: `/relay`
+- Build command: leave blank
+- Deploy command: `npx wrangler deploy`
+- Preview command: `npx wrangler preview`
 
-The v0.7.0 Companion module maintains live TIMER / HH / MM / SS and feedback from wall-clock anchors inside Companion, so the Stream Deck display keeps updating even when the browser window is unfocused.
+The Worker name in `wrangler.jsonc` is intentionally `av-timer-relay` so the Git deployment updates the Worker that already exists in Cloudflare.
 
-## Background timing
+After the first successful deployment, attach the custom domain:
 
-The timer engine is wall-clock based rather than interval-delta based. Browser focus changes, tab throttling or a delayed JavaScript tick cannot make the countdown run slow; the next render catches up to the correct time immediately.
+- `relay.justincreative.tech`
+
+The timer will then connect with `wss://relay.justincreative.tech/ws?...`.
+
+## Endpoints
+
+- `GET /` or `GET /health` - health/status JSON
+- `GET /ws` - WebSocket upgrade endpoint
+
+WebSocket parameters:
+
+- `room` - 4-64 character room ID (`A-Z`, `0-9`, `_`, `-`)
+- `role` - `host` or `client`
+- `token` - 16-256 character room token
+- `name` - optional display name
+
+Example shape:
+
+```text
+wss://relay.justincreative.tech/ws?room=SHOW-ABC123&role=host&token=<random-room-token>&name=FOH
+```
+
+The first connection for a new room must be the host. Its token becomes the room token. Later host/client connections must present the same token.
+
+## Relay protocol (v1)
+
+Server messages include `welcome`, `state`, `event`, `presence`, `ack`, `pong`, `reset`, and `error`.
+
+Host messages:
+
+```json
+{ "type": "state", "data": { "timer": {} } }
+{ "type": "event", "event": "go", "data": {} }
+{ "type": "reset" }
+{ "type": "request_state" }
+{ "type": "ping" }
+```
+
+Client messages:
+
+```json
+{ "type": "command", "command": "go", "data": {} }
+{ "type": "request_state" }
+{ "type": "ping" }
+```
+
+The latest host `state` packet is persisted in the room Durable Object so reconnecting clients can immediately receive the current timer state.
+
+## Security / limits
+
+- Room tokens are SHA-256 hashed before being stored in the Durable Object.
+- Only one host is authoritative per room; a new valid host connection replaces the old host connection.
+- WebSocket payloads are limited to 256 KiB.
+- Browser origins are limited to the AV Timer Pages/custom domains plus localhost; native clients without an Origin header are allowed.
+- Do not put permanent account secrets inside timer state or event payloads.
