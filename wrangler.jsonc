@@ -24,10 +24,5 @@
     "enabled": true
   },
 
-  "routes": [
-    {
-      "pattern": "relay.justincreative.tech",
-      "custom_domain": true
-    }
-  ]
+  "workers_dev": true
 }
