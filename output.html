@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#00324b">
+  <title>JC AV Timer — Output</title>
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/output.css">
+</head>
+<body class="output-body">
+  <main id="outputStage" class="output-stage">
+    <div id="outputTimer" class="output-timer" data-text="00:00">00:00</div>
+    <div id="outputPaused" class="output-paused hidden">PAUSED</div>
+    <div id="outputFinished" class="output-finished hidden">OVERTIME</div>
+    <div id="outputProgress" class="output-progress hidden"><div id="outputProgressBar"></div></div>
+    <div id="outputBanner" class="output-banner hidden"><span id="outputBannerText"></span></div>
+  </main>
+  <div id="fullscreenHotspot" class="fullscreen-hotspot" aria-label="Fullscreen controls"><button id="outputFullscreenBtn" class="output-fullscreen-btn" type="button">Fullscreen</button></div>
+  <script src="js/sync.js"></script><script src="js/output.js"></script>
+</body>
+</html>
