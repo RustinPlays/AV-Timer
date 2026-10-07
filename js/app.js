@@ -227,5 +227,5 @@
 
   document.addEventListener('keydown',e=>{const typing=['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName);if(e.key==='Escape'&&!els.helpModal.classList.contains('hidden')){closeHelp();return}if(typing)return;if(e.key===' '){e.preventDefault();startConfigured(false)}else if(e.key.toLowerCase()==='r'){e.preventDefault();T.reset()}else if(e.key==='Escape'){e.preventDefault();T.stop()}else if(e.key.toLowerCase()==='n'&&!els.next.disabled){e.preventDefault();T.queueNext()}});
 
-  loadSettings();renderQueue();sync(T.snapshot());setTimeout(()=>publish(),150);
+  loadSettings();renderQueue();sync(T.snapshot());document.documentElement.dataset.avTimerReady='1';setTimeout(()=>publish(),150);
 })();
