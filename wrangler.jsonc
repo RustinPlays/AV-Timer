@@ -24,5 +24,12 @@
     "enabled": true
   },
 
-  "workers_dev": true
+  "workers_dev": true,
+
+  "routes": [
+    {
+      "pattern": "relay.justincreative.tech/*",
+      "zone_name": "justincreative.tech"
+    }
+  ]
 }
