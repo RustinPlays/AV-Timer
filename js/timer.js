@@ -176,28 +176,102 @@
     if (!cue.seconds) return null;
     state.queue.push(cue); emit(); return cue;
   }
-  function queueRemove(index) {
-    if (index < 0 || index >= state.queue.length) return false;
+  function queueRemove(indexOrId) {
+    const index = typeof indexOrId === 'string'
+      ? state.queue.findIndex(c => c.id === indexOrId)
+      : Number(indexOrId);
+    if (!Number.isInteger(index) || index < 0 || index >= state.queue.length) return false;
+
     const [removed] = state.queue.splice(index, 1);
-    if (removed?.id === state.currentQueueId) { state.currentQueueId = null; state.currentQueueIndex = -1; state.queueActive = false; }
-    emit(); return true;
+    if (removed?.id === state.currentQueueId) {
+      // Keep the timer currently on-air running. Removing its rundown row must
+      // never stop, restart or zero the live timer. Remember the previous slot
+      // so Next Cue still advances to the cue that followed it.
+      state.currentQueueId = null;
+      state.currentQueueIndex = index - 1;
+      state.queueActive = true;
+    } else if (state.currentQueueId) {
+      state.currentQueueIndex = state.queue.findIndex(c => c.id === state.currentQueueId);
+    } else if (state.queueActive && index <= state.currentQueueIndex) {
+      state.currentQueueIndex = Math.max(-1, state.currentQueueIndex - 1);
+    }
+    emit();
+    return true;
   }
+
+  function queueMove(fromIndex, toIndex) {
+    fromIndex = Number(fromIndex);
+    toIndex = Number(toIndex);
+    if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)) return false;
+    if (fromIndex < 0 || fromIndex >= state.queue.length || toIndex < 0 || toIndex >= state.queue.length) return false;
+    if (fromIndex === toIndex) return true;
+
+    const [cue] = state.queue.splice(fromIndex, 1);
+    state.queue.splice(toIndex, 0, cue);
+    if (state.currentQueueId) {
+      state.currentQueueIndex = state.queue.findIndex(c => c.id === state.currentQueueId);
+    }
+    emit();
+    return true;
+  }
+
+  function queueMoveById(cueId, targetId, after = false) {
+    const from = state.queue.findIndex(c => c.id === cueId);
+    const target = state.queue.findIndex(c => c.id === targetId);
+    if (from < 0 || target < 0 || cueId === targetId) return false;
+    let to = target + (after ? 1 : 0);
+    // Removing the source shifts targets after it left by one.
+    if (from < to) to -= 1;
+    to = Math.max(0, Math.min(state.queue.length - 1, to));
+    return queueMove(from, to);
+  }
+
   function queueClear() { state.queue = []; state.queueActive = false; state.currentQueueId = null; state.currentQueueIndex = -1; emit(); }
-  function queuePlay(index) {
+
+  function queuePlayById(id) {
+    const index = state.queue.findIndex(c => c.id === id);
+    if (index < 0) return false;
     const cue = state.queue[index];
-    if (!cue) return false;
-    state.currentQueueId = cue.id; state.currentQueueIndex = index; state.queueActive = true;
-    return start(cue.seconds, { fromQueue:true, paused:false, countUp:false });
+
+    // Hard cut atomically to the selected cue. There is no intermediate stop,
+    // arm or queue state, so jumping while another timer is live is stable.
+    clearTicker();
+    const now = Date.now();
+    Object.assign(state, {
+      duration: cue.seconds,
+      remaining: cue.seconds,
+      elapsed: 0,
+      countUp: false,
+      running: true,
+      paused: false,
+      finished: false,
+      startedAt: now,
+      queueActive: true,
+      currentQueueId: cue.id,
+      currentQueueIndex: index
+    });
+    reanchor(now);
+    startTicker();
+    emit();
+    return true;
   }
+
+  function queuePlay(index) {
+    const cue = state.queue[Number(index)];
+    return cue ? queuePlayById(cue.id) : false;
+  }
+
   function queueNext() {
     if (!state.queue.length) return false;
     let nextIndex = 0;
     if (state.currentQueueId) {
       const current = state.queue.findIndex(c => c.id === state.currentQueueId);
-      nextIndex = current >= 0 ? current + 1 : 0;
+      nextIndex = current >= 0 ? current + 1 : Math.max(0, state.currentQueueIndex + 1);
+    } else if (state.queueActive && state.currentQueueIndex >= -1) {
+      nextIndex = Math.max(0, state.currentQueueIndex + 1);
     }
     if (nextIndex >= state.queue.length) return false;
-    return queuePlay(nextIndex);
+    return queuePlayById(state.queue[nextIndex].id);
   }
   function queueCurrent() { return state.queue.find(c => c.id === state.currentQueueId) || null; }
   function queueNextCue() {
@@ -227,5 +301,5 @@
   window.addEventListener('focus', refresh);
   window.addEventListener('pageshow', refresh);
 
-  window.AVTimer = { state,onChange,parseTime,formatTime,snapshot,liveValues,refresh,arm,start,pause,resume,togglePause,startPause,reset,stop,adjust,setTime,queueAdd,queueRemove,queueClear,queuePlay,queueNext,queueCurrent,queueNextCue,restore };
+  window.AVTimer = { state,onChange,parseTime,formatTime,snapshot,liveValues,refresh,arm,start,pause,resume,togglePause,startPause,reset,stop,adjust,setTime,queueAdd,queueRemove,queueMove,queueMoveById,queueClear,queuePlay,queuePlayById,queueNext,queueCurrent,queueNextCue,restore };
 })();

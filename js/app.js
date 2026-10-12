@@ -16,6 +16,8 @@
   let companionIsOnline = false;
   let recoveryTimer = null;
   let customFontName = '';
+  let lastQueueRenderKey = '';
+  let draggedQueueId = null;
 
   const els = {
     input:$('timeInput'), operatorTimer:$('operatorTimer'), operatorState:$('operatorStateText'), operatorWarning:$('operatorWarning'), runStatus:$('runStatus'),
@@ -46,7 +48,7 @@
   const helpText = {
     timer:['Live Timer','Enter a duration or choose a Set Timer preset. Start changes to Pause while running. Reset returns to the loaded duration; Stop sets the timer to zero. Countdown continues below zero in red.'],
     adjust:['Adjust Running Timer','These buttons add or remove time from the current timer. They are separate from Set Timer presets, which replace the loaded duration.'],
-    queue:['Timer Queue','Add a duration and optional label. Press ▶ on any cue to jump straight to it. Next Cue always advances manually; no automatic follow is used.'],
+    queue:['Timer Queue','Add a duration and optional label. Drag cues to reorder them, × deletes an individual cue, and ▶ hard-cuts straight to any cue even while another timer is running. Next Cue always advances manually.'],
     appearance:['Appearance','Choose output colours, size, font and display style. Light mode is fixed; changing a colour switches back to colour mode. Chroma disables gradient and shadow and uses a hard outline.'],
     warnings:['Warning Stages','Warnings automatically change the timer colour and show a banner. The most urgent matching stage wins. Presenter messages override warning banners.'],
     messages:['Presenter Message','Send any text to the lower-third banner. Hide keeps the text stored but invisible. Clear removes it. Flash Message only flashes the banner, never the timer.'],
@@ -132,16 +134,75 @@
     });
   }
 
-  function renderQueue(state=T.state){
+  function renderQueue(state=T.state, force=false){
+    // Timer ticks arrive frequently. Rebuilding the entire queue on every tick
+    // made clicks and drag operations unstable, so only repaint when rundown
+    // content/order/current-cue state actually changes.
+    const key = `${state.currentQueueId||''}|${state.currentQueueIndex}|${state.queue.map(c=>`${c.id}:${c.seconds}:${c.label}`).join('|')}`;
+    if(!force && key===lastQueueRenderKey) return;
+    lastQueueRenderKey=key;
+
     els.queueList.innerHTML='';
-    if(!state.queue.length){ const li=document.createElement('li');li.className='queue-empty';li.textContent='No queued timers';els.queueList.append(li); }
+    if(!state.queue.length){ const li=document.createElement('li');li.className='queue-empty';li.textContent='No queued timers';els.queueList.append(li); return; }
+
     state.queue.forEach((cue,i)=>{
-      const li=document.createElement('li');li.className='queue-item';li.classList.toggle('active',cue.id===state.currentQueueId);
-      const play=document.createElement('button');play.className='queue-play';play.textContent='▶';play.title='Play this cue now';play.onclick=()=>T.queuePlay(i);
+      const li=document.createElement('li');
+      li.className='queue-item';
+      li.dataset.cueId=cue.id;
+      li.draggable=true;
+      li.classList.toggle('active',cue.id===state.currentQueueId);
+
+      const drag=document.createElement('span');
+      drag.className='queue-drag';
+      drag.textContent='⋮⋮';
+      drag.title='Drag to reorder';
+      drag.setAttribute('aria-label','Drag to reorder');
+
+      const play=document.createElement('button');
+      play.type='button';play.className='queue-play';play.textContent='▶';play.title='Cut to this cue now';
+      // Use the cue ID, not a rendered array index. That remains correct after
+      // reordering and allows a clean hard-cut while another cue is running.
+      play.onclick=e=>{e.stopPropagation();T.queuePlayById(cue.id)};
+
       const idx=document.createElement('span');idx.className='queue-index';idx.textContent=String(i+1).padStart(2,'0');
-      const info=document.createElement('div');info.className='queue-info';const label=document.createElement('strong');label.textContent=cue.label||`Cue ${i+1}`;const time=document.createElement('span');time.textContent=displaySeconds(cue.seconds);info.append(label,time);
-      const remove=document.createElement('button');remove.textContent='×';remove.title='Remove cue';remove.onclick=()=>T.queueRemove(i);
-      li.append(play,idx,info,remove);els.queueList.append(li);
+      const info=document.createElement('div');info.className='queue-info';
+      const label=document.createElement('strong');label.textContent=cue.label||`Cue ${i+1}`;
+      const time=document.createElement('span');time.textContent=displaySeconds(cue.seconds);info.append(label,time);
+
+      const remove=document.createElement('button');
+      remove.type='button';remove.className='queue-delete';remove.textContent='×';remove.title='Delete this cue';
+      remove.setAttribute('aria-label',`Delete ${cue.label||`Cue ${i+1}`}`);
+      remove.onclick=e=>{e.stopPropagation();T.queueRemove(cue.id)};
+
+      li.addEventListener('dragstart',e=>{
+        draggedQueueId=cue.id;
+        li.classList.add('dragging');
+        e.dataTransfer.effectAllowed='move';
+        try{e.dataTransfer.setData('text/plain',cue.id)}catch{}
+      });
+      li.addEventListener('dragend',()=>{
+        draggedQueueId=null;
+        document.querySelectorAll('.queue-item').forEach(x=>x.classList.remove('dragging','drag-before','drag-after'));
+      });
+      li.addEventListener('dragover',e=>{
+        if(!draggedQueueId||draggedQueueId===cue.id)return;
+        e.preventDefault();e.dataTransfer.dropEffect='move';
+        const r=li.getBoundingClientRect();
+        const after=e.clientY>r.top+r.height/2;
+        li.classList.toggle('drag-before',!after);li.classList.toggle('drag-after',after);
+      });
+      li.addEventListener('dragleave',()=>li.classList.remove('drag-before','drag-after'));
+      li.addEventListener('drop',e=>{
+        e.preventDefault();
+        const source=draggedQueueId||e.dataTransfer.getData('text/plain');
+        if(!source||source===cue.id)return;
+        const r=li.getBoundingClientRect();
+        const after=e.clientY>r.top+r.height/2;
+        draggedQueueId=null;
+        T.queueMoveById(source,cue.id,after);
+      });
+
+      li.append(drag,play,idx,info,remove);els.queueList.append(li);
     });
   }
 
