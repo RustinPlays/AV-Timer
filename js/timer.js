@@ -167,12 +167,29 @@
     state.duration = seconds; state.remaining = seconds; state.elapsed = 0; state.finished = false; reanchor(); emit(); return true;
   }
 
-  function normalizeCue(cue) {
-    if (typeof cue === 'number') return { id: uid(), seconds: Math.max(0, Math.round(cue)), label: '' };
-    return { id: cue?.id || uid(), seconds: Math.max(0, Math.round(Number(cue?.seconds) || 0)), label: String(cue?.label || '').slice(0, 120) };
+  function nextDefaultCueLabel(queue = state.queue) {
+    let highest = 0;
+    for (const cue of queue) {
+      const match = /^Cue\s+(\d+)$/i.exec(String(cue?.label || '').trim());
+      if (match) highest = Math.max(highest, Number(match[1]) || 0);
+    }
+    return `Cue ${highest + 1}`;
   }
+
+  function normalizeCue(cue, fallbackLabel = '') {
+    if (typeof cue === 'number') {
+      return { id: uid(), seconds: Math.max(0, Math.round(cue)), label: String(fallbackLabel || '').slice(0, 120) };
+    }
+    return {
+      id: cue?.id || uid(),
+      seconds: Math.max(0, Math.round(Number(cue?.seconds) || 0)),
+      label: String(cue?.label || fallbackLabel || '').slice(0, 120)
+    };
+  }
+
   function queueAdd(seconds, label = '') {
-    const cue = normalizeCue({seconds, label});
+    const finalLabel = String(label || '').trim() || nextDefaultCueLabel();
+    const cue = normalizeCue({seconds, label: finalLabel});
     if (!cue.seconds) return null;
     state.queue.push(cue); emit(); return cue;
   }
@@ -284,7 +301,14 @@
   function restore(saved) {
     if (!saved || typeof saved !== 'object') return false;
     clearTicker();
-    const queue = Array.isArray(saved.queue) ? saved.queue.map(normalizeCue).filter(c => c.seconds > 0) : [];
+    const queue = [];
+    if (Array.isArray(saved.queue)) {
+      for (const rawCue of saved.queue) {
+        const fallbackLabel = String(rawCue?.label || '').trim() || nextDefaultCueLabel(queue);
+        const cue = normalizeCue(rawCue, fallbackLabel);
+        if (cue.seconds > 0) queue.push(cue);
+      }
+    }
     Object.assign(state, {
       duration: Number(saved.duration || 0), remaining: Number(saved.remaining || 0), elapsed: Number(saved.elapsed || 0),
       running: !!saved.running, paused: !!saved.paused, countUp: !!saved.countUp, finished: !!saved.finished,

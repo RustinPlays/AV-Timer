@@ -166,12 +166,12 @@
 
       const idx=document.createElement('span');idx.className='queue-index';idx.textContent=String(i+1).padStart(2,'0');
       const info=document.createElement('div');info.className='queue-info';
-      const label=document.createElement('strong');label.textContent=cue.label||`Cue ${i+1}`;
+      const label=document.createElement('strong');label.textContent=cue.label||'Unnamed Cue';
       const time=document.createElement('span');time.textContent=displaySeconds(cue.seconds);info.append(label,time);
 
       const remove=document.createElement('button');
       remove.type='button';remove.className='queue-delete';remove.textContent='×';remove.title='Delete this cue';
-      remove.setAttribute('aria-label',`Delete ${cue.label||`Cue ${i+1}`}`);
+      remove.setAttribute('aria-label',`Delete ${cue.label||'Unnamed Cue'}`);
       remove.onclick=e=>{e.stopPropagation();T.queueRemove(cue.id)};
 
       li.addEventListener('dragstart',e=>{
