@@ -18,6 +18,10 @@
   let loopGeneration = 0;
   let stateFlushTimer = null;
   let lastStateSendAt = 0;
+  let stateSequence = 0;
+  let stateSequence = 0;
+  let stateSequence = 0;
+  const stateSession = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const listeners = new Set();
   const statusListeners = new Set();
 
@@ -36,6 +40,7 @@
     const r = await fetchTimed(`${base}/api/status`, requestOptions());
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
+    if (Number(data.latestId||0) < lastId) { lastId=0; }
     if (!initialized) { if (!lastId) lastId = Number(data.latestId || 0); initialized = true; sessionStorage.setItem('jcAvTimerRemoteLastId', String(lastId)); }
     markSuccess(); return data;
   }
@@ -81,7 +86,7 @@
   async function test(){ const data=await bootstrap(); await flushState(); return data; }
   function onCommand(fn){ listeners.add(fn); return ()=>listeners.delete(fn); }
   function onStatus(fn){ statusListeners.add(fn); fn(online); return ()=>statusListeners.delete(fn); }
-  function publishState(state){ pendingState=state; scheduleStateFlush(); }
+  function publishState(state){ pendingState={...state, companionAckId:lastId, companionStateSequence:++stateSequence, companionStateSession:stateSession}; scheduleStateFlush(); }
   window.addEventListener('focus',()=>{bootstrap().catch(markFailure);flushState();});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){bootstrap().catch(markFailure);flushState();}});
   window.AVRemote={start,restart,onCommand,onStatus,publishState,getPort,setPort,test};

@@ -1,4 +1,4 @@
-# JC AV Timer v5.0.0
+# JC AV Timer v5.0.5
 
 This repository is the complete source for both:
 
@@ -30,8 +30,8 @@ It is designed to be uploaded into a completely empty GitHub repository. No old 
 │  ├─ icon-192.png
 │  └─ icon-512.png
 ├─ downloads/
-│  ├─ JC-AV-Timer-Offline-v5.0.0.zip
-│  └─ JC-AV-Timer-Companion-0.8.0.tgz
+│  ├─ JC-AV-Timer-Offline-v5.0.5.zip
+│  └─ JC-AV-Timer-Companion-0.8.1.tgz
 ├─ src/
 │  └─ index.js                    Cloudflare Worker/Durable Object relay
 ├─ package.json
@@ -63,7 +63,7 @@ npm run deploy
 
 ## Bitfocus Companion
 
-Download/import `downloads/JC-AV-Timer-Companion-0.8.0.tgz` as a custom Companion module/package, then add **JC - AV Timer**.
+Download/import `downloads/JC-AV-Timer-Companion-0.8.1.tgz` as a custom Companion module/package, then add **JC - AV Timer**.
 
 Default local API port: `3210`.
 
@@ -71,6 +71,6 @@ The v0.8 module includes transport, timer presets, add/remove time, queue feedba
 
 ## Offline package
 
-`downloads/JC-AV-Timer-Offline-v5.0.0.zip` is the complete portable/offline copy. Extract it and open `JC AV Timer.html`.
+`downloads/JC-AV-Timer-Offline-v5.0.5.zip` is the complete portable/offline copy. Extract it and open `JC AV Timer.html`.
 
 The timer does not need internet to run. Companion is local. Remote Viewer needs internet.

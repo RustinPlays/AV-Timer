@@ -1,12 +1,6 @@
-AV Timer v5.0.4 - Stable unnamed cue names
+JC AV Timer v5.0.5 — Offline download and Companion feedback reliability fixes.
 
-Replace these files in GitHub:
-- index.html
-- js/app.js
-- js/timer.js
-
-Changes:
-- Unnamed cues are assigned a permanent Cue N name when created.
-- Reordering cues no longer renames them.
-- Deleting cues no longer causes later unnamed cues to be renumbered.
-- Existing saved blank-label cues are migrated to stable names on load.
+Upload all files to the site root, including the downloads directory.
+The offline button downloads v5.0.5, matching the actual bundled file.
+Companion module is v0.8.1: re-import this version into Companion.
+Offline: unzip the download and open JC AV Timer.html, keeping the folders beside it.
