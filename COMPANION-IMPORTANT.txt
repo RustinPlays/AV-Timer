@@ -1,5 +1,0 @@
-JC AV Timer website and offline app v5.0.5.
-
-Companion package downloads/JC-AV-Timer-Companion-0.8.2.tgz is included, but was previously rejected by Companion and is NOT verified compatible with Companion 5.1.0. Do not expect it to import until a proper Bitfocus module build is available.
-
-No GitHub Actions workflows or Companion builder source is included.
