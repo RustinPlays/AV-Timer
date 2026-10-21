@@ -19,8 +19,6 @@
   let stateFlushTimer = null;
   let lastStateSendAt = 0;
   let stateSequence = 0;
-  let stateSequence = 0;
-  let stateSequence = 0;
   const stateSession = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const listeners = new Set();
   const statusListeners = new Set();
