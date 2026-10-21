@@ -1,0 +1,11 @@
+COMPANION 5.1.0 BUILD INSTRUCTIONS
+
+This is source code, NOT an importable module. A valid .tgz must be created by Bitfocus build tooling.
+
+1. Create a separate GitHub repository for this module (or add this source at the root of a separate branch).
+2. Upload ALL the contents of this folder to the repository root, including .github/workflows/build-module.yml.
+3. Go to Actions > Build JC AV Timer Companion module > Run workflow.
+4. If the build succeeds, download the workflow artifact, unzip it and import the contained .tgz through Companion > Manage Modules > Import module package.
+5. If the build fails, send the error logs for repair.
+
+WARNING: This source still uses a custom IPC shim and has not been validated against Companion 5.1.0. The official build may fail and even a successful build does not guarantee it runs.

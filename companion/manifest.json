@@ -1,0 +1,41 @@
+{
+  "$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+  "type": "connection",
+  "id": "jc-av-timer",
+  "name": "JC - AV Timer",
+  "shortname": "JC Timer",
+  "description": "Control JC AV Timer from Bitfocus Companion with live timer, queue, presenter messaging, flash controls and display feedback.",
+  "version": "0.0.0",
+  "license": "MIT",
+  "repository": "https://github.com/RustinPlays/AV-Timer",
+  "bugs": "https://github.com/RustinPlays/AV-Timer/issues",
+  "maintainers": [
+    {
+      "name": "Justin O'Shea"
+    }
+  ],
+  "runtime": {
+    "type": "node22",
+    "api": "nodejs-ipc",
+    "apiVersion": "0.0.0",
+    "entrypoint": "../main.js"
+  },
+  "legacyIds": [
+    "joc-av-timer"
+  ],
+  "manufacturer": "J Creative",
+  "products": [
+    "AV Timer"
+  ],
+  "keywords": [
+    "JC",
+    "J Creative",
+    "Justin Creative",
+    "Justin OShea",
+    "AV Timer",
+    "RustinPlays",
+    "timer",
+    "show timer",
+    "ontime"
+  ]
+}
