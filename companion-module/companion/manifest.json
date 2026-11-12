@@ -1,0 +1,15 @@
+{
+  "id": "jc-avtimer",
+  "name": "JC AV Timer",
+  "shortname": "JC AV Timer",
+  "description": "Local timer bridge with live Companion variables and ready-to-use feedback presets",
+  "version": "0.9.0",
+  "license": "UNLICENSED",
+  "repository": "https://github.com/RustinPlays/AV-Timer",
+  "bugs": "https://github.com/RustinPlays/AV-Timer/issues",
+  "maintainers": [{"name": "JC"}],
+  "legacyIds": ["jc-timer", "jc-av-timer"],
+  "runtime": {"type":"node18","api":"nodejs-ipc","apiVersion":"0.0.0","entrypoint":"../src/main.js"},
+  "manufacturer": "JC", "products": ["AV Timer"],
+  "keywords": ["timer","presentation","countdown"]
+}
