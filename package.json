@@ -1,13 +1,8 @@
 {
-  "name": "av-timer-relay",
-  "version": "2.0.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
-  },
-  "devDependencies": {
-    "wrangler": "^4.146.0"
-  }
+  "name": "companion-module-jc-avtimer", "version": "0.9.0", "private": true,
+  "main": "src/main.js", "license": "UNLICENSED",
+  "scripts": { "package": "companion-module-build", "test": "node --test tests/*.test.js" },
+  "engines": { "node": ">=22" },
+  "dependencies": { "@companion-module/base": "~1.14.1" },
+  "devDependencies": { "@companion-module/tools": "^2.8.0" }
 }

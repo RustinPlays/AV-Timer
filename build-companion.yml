@@ -1,0 +1,31 @@
+name: Build JC AV Timer Companion module
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'companion-module/**'
+      - '.github/workflows/build-companion.yml'
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        working-directory: companion-module
+        run: npm install
+      - name: Test
+        working-directory: companion-module
+        run: npm test
+      - name: Build Companion importable .tgz
+        working-directory: companion-module
+        run: npm run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JC-AV-Timer-Companion-fixed
+          path: |
+            companion-module/**/*.tgz
+            companion-module/**/*.tar.gz
+          if-no-files-found: error
