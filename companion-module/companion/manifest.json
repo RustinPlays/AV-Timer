@@ -4,7 +4,7 @@
   "shortname": "JC AV Timer",
   "description": "Local timer bridge with live Companion variables and ready-to-use feedback presets",
   "version": "0.9.1",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": "https://github.com/RustinPlays/AV-Timer",
   "bugs": "https://github.com/RustinPlays/AV-Timer/issues",
   "maintainers": [
