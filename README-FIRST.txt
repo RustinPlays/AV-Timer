@@ -1,30 +1,16 @@
-JC AV TIMER - Companion feedback fix source (v0.9.0)
+JC AV TIMER v0.9.1 — WEBSITE DOWNLOAD FIX
 
-This is a NEW source implementation, NOT a modified copy of the existing v0.8.7 binary.
-It preserves the existing website's localhost API at port 3210.
+WHY YOU STILL DOWNLOADED 0.8.7
+Your website index.html currently links to downloads/JC-AV-Timer-Companion-v0.8.7-Safe-Fix.tgz. The source in GitHub still reports version 0.9.0. Merely uploading new source does not replace the built .tgz.
 
-WHAT IS INCLUDED
-- companion-module/src/main.js : local HTTP bridge, feedbacks, actions, presets
-- companion-module/src/state.js: typed live state normalization
-- companion-module/companion/manifest.json: module metadata
-- companion-module/package.json: dependencies and build instructions
-- companion-module/tests/: state tests
-- .github/workflows/build-companion.yml: GitHub Actions package builder
+HOW TO FIX
+1. Extract this ZIP and upload the companion-module folder contents and .github/workflows/build-companion.yml to the ROOT of RustinPlays/AV-Timer (preserve folder paths).
+2. Important: GitHub's browser Upload files may SKIP the hidden .github folder. Confirm .github/workflows/build-companion.yml exists by browsing the repo after upload. If missing, create the file using Add file > Create new file and type the full path .github/workflows/build-companion.yml, then paste the file contents.
+3. Open GitHub Actions > Build and Publish JC AV Timer Companion v0.9.1 > Run workflow (if push did not run it automatically).
+4. The successful workflow packages the module and commits downloads/JC-AV-Timer-Companion-v0.9.1.tgz, updating the website button in index.html. It also provides an Actions artifact for manual installation.
+5. Wait until your website hosting has deployed that commit. Refresh the page bypassing cache (Ctrl+F5), then download the Companion module again. It should now be v0.9.1.
 
-GITHUB UPLOAD
-1. In RustinPlays/AV-Timer, upload the contents of this ZIP into the repo root.
-2. The source folder MUST be called companion-module (not module).
-3. GitHub Actions > Build JC AV Timer Companion module > Run workflow.
-4. Download artifact from completed workflow; inside is the .tgz for Companion's Import Module Package.
-5. In Companion 5.1.0, install/import the built module. Restart the connection if needed.
-6. In the website, select port 3210 and press Test Companion.
-7. In Companion, add new presets: Live Timer, Live Hours, Live Minutes, Live Seconds, Status, Start/Pause.
+If the workflow gets HTTP 403 on git push, enable repository Settings > Actions > General > Workflow permissions > Read and write permissions (if available), then rerun the workflow; or manually copy the built artifact's .tgz into downloads/ and update index.html link to downloads/JC-AV-Timer-Companion-v0.9.1.tgz.
 
-NOTE: Existing buttons may refer to the previous module's internal ID or older feedback IDs.
-The new module's presets are self-contained; drag NEW presets rather than editing old ones.
-There is no need to replace the website/Cloudflare worker or offline zip for this live-feedback change.
-
-LIMITATION
-This source has passed syntax and state normalization tests locally, but was not built
-with companion-module-build or imported into your actual Companion 5.1.0 installation.
-Run the workflow and check module logs, as the packaging compatibility is not yet verified.
+NOTE
+This is a new source implementation; it has not been proven importable in your Companion 5.1.0. If the workflow build/import fails, send the failure log and do not replace your working v0.8.7 module yet.
