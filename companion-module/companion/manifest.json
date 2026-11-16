@@ -3,7 +3,7 @@
   "name": "JC AV Timer",
   "shortname": "JC AV Timer",
   "description": "Local timer and live clock with Companion variables, feedbacks, and output mode control",
-  "version": "0.9.2",
+  "version": "0.0.0",
   "license": "MIT",
   "repository": "https://github.com/RustinPlays/AV-Timer",
   "bugs": "https://github.com/RustinPlays/AV-Timer/issues",
@@ -17,7 +17,7 @@
     "jc-av-timer"
   ],
   "runtime": {
-    "type": "node18",
+    "type": "node22",
     "api": "nodejs-ipc",
     "apiVersion": "0.0.0",
     "entrypoint": "../src/main.js"
@@ -30,5 +30,6 @@
     "timer",
     "presentation",
     "countdown"
-  ]
+  ],
+  "type": "connection"
 }
