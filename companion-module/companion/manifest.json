@@ -1,8 +1,8 @@
 {
-  "id": "jc-avtimer",
-  "name": "JC AV Timer",
+  "id": "jc-av-timer",
+  "name": "JC - AV Timer",
   "shortname": "JC AV Timer",
-  "description": "Local timer and live clock with Companion variables, feedbacks, and output mode control",
+  "description": "Local JC AV Timer bridge with stable connection, clock display, presets, live timer feedbacks and 12/24 hour clock",
   "version": "0.0.0",
   "license": "MIT",
   "repository": "https://github.com/RustinPlays/AV-Timer",
@@ -13,8 +13,9 @@
     }
   ],
   "legacyIds": [
-    "jc-timer",
-    "jc-av-timer"
+    "jc-avtimer",
+    "joc-av-timer",
+    "jc-timer"
   ],
   "runtime": {
     "type": "node22",

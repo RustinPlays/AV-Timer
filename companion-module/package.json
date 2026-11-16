@@ -1,6 +1,6 @@
 {
-  "name": "companion-module-jc-avtimer",
-  "version": "0.9.3",
+  "name": "companion-module-jc-av-timer",
+  "version": "0.9.4",
   "private": true,
   "main": "src/main.js",
   "license": "MIT",
@@ -16,9 +16,5 @@
   },
   "devDependencies": {
     "@companion-module/tools": "^2.8.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/RustinPlays/AV-Timer.git"
   }
 }

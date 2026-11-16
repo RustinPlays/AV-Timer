@@ -12,6 +12,8 @@
   let initialized = false;
   let online = false;
   let stateTimer = null;
+  let heartbeatTimer = null;
+  let heartbeatInFlight = false;
   let pendingState = null;
   let sendingState = false;
   let lastSuccessAt = 0;
@@ -77,8 +79,29 @@
     } catch { if (!pendingState) pendingState = state; markFailure(); }
     finally { sendingState = false; if (pendingState) scheduleStateFlush(); }
   }
-  function start() { const generation = ++loopGeneration; pollForever(generation); if (!stateTimer) { scheduleStateFlush(0); stateTimer = setInterval(() => { if (pendingState) scheduleStateFlush(0); }, 1000); } }
-  function restart() { ++loopGeneration; if (stateTimer) clearInterval(stateTimer); stateTimer=null; if (stateFlushTimer) clearTimeout(stateFlushTimer); stateFlushTimer=null; initialized=false; lastId=0; lastSuccessAt=0; sessionStorage.setItem('jcAvTimerRemoteLastId','0'); notify(false); start(); }
+  async function heartbeat() {
+    if (heartbeatInFlight) return;
+    heartbeatInFlight = true;
+    try {
+      const r = await fetchTimed(`${base}/api/status`, requestOptions(), REQUEST_TIMEOUT_MS);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      markSuccess();
+    } catch { markFailure(); }
+    finally { heartbeatInFlight = false; }
+  }
+  function start() {
+    const generation = ++loopGeneration;
+    pollForever(generation);
+    if (!stateTimer) {
+      scheduleStateFlush(0);
+      stateTimer = setInterval(() => { if (pendingState) scheduleStateFlush(0); }, 1000);
+    }
+    if (!heartbeatTimer) {
+      heartbeat();
+      heartbeatTimer = setInterval(heartbeat, 3000);
+    }
+  }
+  function restart() { ++loopGeneration; if (heartbeatTimer) clearInterval(heartbeatTimer); heartbeatTimer=null; if (stateTimer) clearInterval(stateTimer); stateTimer=null; if (stateFlushTimer) clearTimeout(stateFlushTimer); stateFlushTimer=null; initialized=false; lastId=0; lastSuccessAt=0; sessionStorage.setItem('jcAvTimerRemoteLastId','0'); notify(false); start(); }
   function getPort(){ return port; }
   function setPort(value){ port=normalizePort(value); base=`http://127.0.0.1:${port}`; try{localStorage.setItem('jcCompanionPort',String(port));}catch{} restart(); return port; }
   async function test(){ const data=await bootstrap(); await flushState(); return data; }
