@@ -43,3 +43,13 @@ select:disabled{color:#718096!important}
 
 @media(max-width:1180px){.topbar-groups{flex-wrap:wrap;justify-content:flex-end}.topbar{align-items:flex-start}.topbar-group{border-right:0;padding-right:0}}
 @media(max-width:700px){.presenter-panel .message-main-actions{grid-template-columns:1fr 1fr!important}.transport-buttons{grid-template-columns:1fr 1fr!important}.topbar-groups{justify-content:flex-start}}
+
+/* JC AV Timer v5.0.8 clock controls */
+.clock-mode-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:4px 0 12px}
+.display-mode-switch{display:flex;gap:5px;border:1px solid var(--line,#30445b);padding:4px;border-radius:11px;background:rgba(0,0,0,.18)}
+.display-mode-switch button{padding:8px 17px;min-width:74px;border:0;border-radius:8px;background:transparent;color:inherit;cursor:pointer;font-weight:800}
+.display-mode-switch button.active{background:#237eae;color:white;box-shadow:0 2px 12px rgba(0,0,0,.18)}
+.clock-format-control{display:flex;align-items:center;gap:9px;font-size:.85rem;font-weight:650}
+.clock-format-control select{min-height:35px;min-width:122px;max-width:180px}
+.clock-zone-hint{font-size:.7rem;opacity:.68;overflow-wrap:anywhere}
+@media(max-width:540px){.clock-zone-hint{display:none}}

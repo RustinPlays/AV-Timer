@@ -4,7 +4,8 @@
   const T = window.AVTimer;
   const R = window.AVRemote;
   const S = window.AVSync;
-  if (!T || !R || !S) return;
+  const Clock = window.JCClock;
+  if (!T || !R || !S || !Clock) return;
 
   const ADJUST_PRESETS = [60,120,300,600,900,1800,2700,3600];
   const SETTINGS_KEY = 'jcAvTimerSettingsV5';
@@ -28,6 +29,7 @@
     messageInput:$('messageInput'), bannerToggle:$('bannerToggleBtn'), flashMessage:$('flashMessageBtn'), flashTimer:$('flashTimerBtn'),
     showProgress:$('showProgressCheckbox'), gradient:$('gradientToggle'), shadow:$('shadowToggle'), warningsToggle:$('warningsToggle'),
     fontSelect:$('fontSelect'), fontWeight:$('fontWeight'), customFontInput:$('customFontInput'), fontStatus:$('fontStatus'), chromaOptions:$('chromaOptions'),
+    timerMode:$('timerDisplayModeBtn'), clockMode:$('clockDisplayModeBtn'), clockFormat:$('clockFormatSelect'), clockZone:$('clockZoneHint'),
     helpModal:$('helpModal'), contextHelpModal:$('contextHelpModal'), shortcutModal:$('shortcutModal')
   };
 
@@ -39,6 +41,7 @@
     bg:DEFAULT_BG, fg:'#f5f5f5', progress:'#ff4b4b', timeColor:'#ff3030', scale:1,
     light:false, chroma:false, chromaColor:'#00ff00', chromaInvert:false, gradient:true, showProgress:false, shadow:true,
     fontFamily:'Inter', fontWeight:'900', warningsEnabled:true, countUp:false, autostart:true,
+    displayMode:'timer', clockFormat:'24',
     warningRules:freshWarnings(), bannerVisible:true, presenterMessage:'', flashTimer:false, flashMessage:false
   });
   const settings = defaults();
@@ -52,6 +55,7 @@
     appearance:['Appearance','Choose output colours, size, font and display style. Light mode is fixed; changing a colour switches back to colour mode. Chroma disables gradient and shadow and uses a hard outline.'],
     warnings:['Warning Stages','Warnings automatically change the timer colour and show a banner. The most urgent matching stage wins. Presenter messages override warning banners.'],
     messages:['Presenter Message','Send any text to the lower-third banner. Hide keeps the text stored but invisible. Clear removes it. Flash Message only flashes the banner, never the timer.'],
+    clock:['Current Time / Clock','Switch output between countdown timer and a live current-time clock. Choose 24-hour or 12-hour (AM/PM). Seconds always display, including in external/remote outputs. Timer/queue continue running underneath.'],
     output:['Output Monitor','PiP is a live preview. Open External Timer Window creates the clean output. Focus and Close control that pop-out; Refresh PiP reloads only the preview.']
   };
 
@@ -64,6 +68,7 @@
     try { const saved=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'null'); if(saved) Object.assign(settings,saved); } catch {}
     if(!Array.isArray(settings.warningRules)) settings.warningRules=freshWarnings();
     settings.warningRules=settings.warningRules.map(r=>({id:r.id||uid(),enabled:r.enabled!==false,threshold:Math.max(0,Number(r.threshold)||0),label:String(r.label??''),color:r.color||'#ff3030'}));
+    settings.displayMode=settings.displayMode==='clock'?'clock':'timer'; settings.clockFormat=settings.clockFormat==='12'?'12':'24';
     applySettingsToControls(); renderWarningRules(); restoreCustomFont(); restoreRecovery();
   }
   function saveSettings(){
@@ -96,10 +101,15 @@
     els.chromaOptions.classList.toggle('hidden',!settings.chroma);
     const locked=!!settings.chroma;
     $('bgColor').disabled=locked; els.gradient.disabled=locked; els.shadow.disabled=locked; $('modeToggle').disabled=locked;
+    els.timerMode.classList.toggle('active',settings.displayMode!=='clock'); els.clockMode.classList.toggle('active',settings.displayMode==='clock');
+    els.timerMode.setAttribute('aria-pressed',String(settings.displayMode!=='clock'));els.clockMode.setAttribute('aria-pressed',String(settings.displayMode==='clock'));
+    els.clockFormat.value=settings.clockFormat==='12'?'12':'24';els.clockZone.textContent=Clock.timezone();
     els.bannerToggle.textContent=settings.bannerVisible?'Hide Banner':'Show Banner'; els.flashTimer.textContent=`Flash Timer: ${settings.flashTimer?'On':'Off'}`; els.flashTimer.classList.toggle('active',!!settings.flashTimer); els.flashMessage.textContent=`Flash Message: ${settings.flashMessage?'On':'Off'}`; els.flashMessage.classList.toggle('active',!!settings.flashMessage);
   }
 
   function switchToColourMode(){ if(settings.light){ settings.light=false; $('modeToggle').textContent='Light Mode'; $('modeToggle').classList.remove('active'); } }
+  function setDisplayMode(mode){const next=mode==='toggle'?(settings.displayMode==='clock'?'timer':'clock'):(mode==='clock'?'clock':'timer');settings.displayMode=next;settingsChanged();}
+  function setClockFormat(format){settings.clockFormat=String(format)==='12'?'12':'24';settingsChanged();}
   function settingsChanged(){ saveSettings(); applySettingsToControls(); sync(T.snapshot()); scheduleRecovery(); }
 
   function warningRemaining(state){ if(state.countUp) return state.duration>0?Math.max(0,state.duration-state.elapsed):Infinity; return Math.max(0,state.remaining); }
@@ -214,22 +224,26 @@
     if(overtime) progressPercent=0;
     const banner=bannerData(state); if(extra.testWarningColor) banner.color=extra.testWarningColor;
     const cur=currentCue(state), next=nextCue(state), currentIndex=cur?state.queue.findIndex(c=>c.id===cur.id):-1;
+    const clockMode=settings.displayMode==='clock',clockZone=Clock.timezone();
+    const clock24=Clock.format(Date.now(),'24',clockZone),clock12=Clock.format(Date.now(),'12',clockZone);
     const status=overtime?'OVERTIME':state.paused?'PAUSED':state.running?(state.countUp?'COUNTING UP':'RUNNING'):state.duration>0?'ARMED':'READY';
     return {version:5,sentAt:Date.now(),state:{
+      displayMode:clockMode?'clock':'timer',clockFormat:settings.clockFormat,clockTime:settings.clockFormat==='12'?clock12:clock24,clockTime24:clock24,clockTime12:clock12,clockTimeZone:clockZone,
       running:state.running,paused:state.paused,finished:overtime,countUp:state.countUp,clockAnchorMs:Number(state.clockAnchorMs||0),anchorRemaining:Number(state.anchorRemaining??state.remaining??0),anchorElapsed:Number(state.anchorElapsed??state.elapsed??0),seconds:Math.round(seconds),formatted:displaySeconds(seconds),displayTime:displaySeconds(seconds),hours:parts.hours,minutes:parts.minutes,secondsPart:parts.seconds,duration:Math.round(state.duration),status,pauseResumeLabel:state.running&&!state.paused?'PAUSE':'START',progressPercent,
       warningActive:!!warning,warningId:warning?.id||'',warningLabel:warning?.label||'',warningColor:warning?.color||'',warningRemaining:Number.isFinite(warningRemaining(state))?Math.round(warningRemaining(state)):0,
       queueLength:state.queue.length,queueActive:state.queueActive,currentCueIndex:currentIndex,currentCueNumber:currentIndex>=0?currentIndex+1:0,currentCueLabel:cur?.label||'',currentCueDuration:cur?.seconds||0,nextCueLabel:next?.label||'',nextCueDuration:next?.seconds||0,hasNextCue:!!next,
       warningsEnabled:!!settings.warningsEnabled,progressEnabled:!!settings.showProgress,gradientEnabled:settings.gradient!==false,chromaEnabled:!!settings.chroma,lightEnabled:!!settings.light,shadowEnabled:settings.shadow!==false,autostart:settings.autostart!==false,
       bannerVisible:banner.visible,bannerText:banner.text,bannerKind:banner.kind,flashTimer:!!settings.flashTimer,flashMessage:!!settings.flashMessage,presenterMessage:settings.presenterMessage,remoteViewerCount:window.AVCloudSync?.getState?.().connections||0,outputScale:Number(settings.scale)||1
-    },display:{...settings,warningRules:clone(settings.warningRules)}};
+    },display:{...settings,clockTimeZone:clockZone,warningRules:clone(settings.warningRules)}};
   }
   function publish(state=T.snapshot()){ const payload=buildLivePayload(state);S.publish(payload);R.publishState({...payload.state,display:payload.display,updatedAt:Date.now()}); }
 
   function sync(state){
     const payload=buildLivePayload(state); const seconds=state.countUp?state.elapsed:state.remaining; const overtime=!state.countUp&&seconds<=0&&state.duration>0;
-    els.operatorTimer.textContent=displaySeconds(seconds); els.operatorTimer.classList.toggle('overtime',overtime); els.operatorTimer.style.color=payload.state.warningActive&&!overtime?payload.state.warningColor:'';
-    els.operatorWarning.textContent=payload.state.warningLabel; els.operatorWarning.style.setProperty('--warning-chip',payload.state.warningColor||'#ff3030'); els.operatorWarning.classList.toggle('hidden',!payload.state.warningActive||!payload.state.warningLabel);
-    const statusClass=overtime?'finished':state.paused?'paused':state.running?'running':'idle';els.operatorState.textContent=payload.state.status;els.runStatus.textContent=payload.state.status;els.runStatus.className=`status-pill ${statusClass}`;
+    const showingClock=settings.displayMode==='clock';
+    els.operatorTimer.textContent=showingClock?payload.state.clockTime:displaySeconds(seconds); els.operatorTimer.classList.toggle('overtime',!showingClock&&overtime); els.operatorTimer.style.color=!showingClock&&payload.state.warningActive&&!overtime?payload.state.warningColor:'';
+    els.operatorWarning.textContent=payload.state.warningLabel; els.operatorWarning.style.setProperty('--warning-chip',payload.state.warningColor||'#ff3030'); els.operatorWarning.classList.toggle('hidden',showingClock||!payload.state.warningActive||!payload.state.warningLabel);
+    const statusClass=showingClock?'idle':overtime?'finished':state.paused?'paused':state.running?'running':'idle';els.operatorState.textContent=showingClock?`CLOCK ${settings.clockFormat}H`:payload.state.status;els.runStatus.textContent=showingClock?'Clock':payload.state.status;els.runStatus.className=`status-pill ${statusClass}`;
     els.startPause.textContent=state.running&&!state.paused?'Pause':'Start';els.startPause.classList.toggle('start',!state.running||state.paused);els.startPause.classList.toggle('pause',state.running&&!state.paused);
     els.reset.disabled=state.duration<=0;els.stop.disabled=state.duration<=0&&!state.running;els.next.disabled=!payload.state.hasNextCue;
     if(!state.running&&document.activeElement!==els.input){ if(state.duration>0)setInputSeconds(state.duration);else if(!overtime)els.input.value=''; }
@@ -237,6 +251,8 @@
   }
 
   T.onChange(sync); S.onStateRequest(()=>publish());
+  // A countdown can be idle; clock mode still has to publish a fresh HH:MM:SS.
+  setInterval(()=>{if(settings.displayMode==='clock')sync(T.snapshot())},1000);
 
   function startConfigured(forceRunning=false){ const typed=inputSeconds(); if(!T.state.running&&typed>0&&typed!==Math.round(T.state.duration))T.setTime(typed); if(T.state.running)return T.togglePause(); const paused=forceRunning?false:!settings.autostart;return T.start(null,{countUp:!!settings.countUp,paused}); }
   function setFeature(feature,op='toggle'){
@@ -244,13 +260,14 @@
     if(f==='warnings')settings.warningsEnabled=toggle(!!settings.warningsEnabled);else if(f==='progress')settings.showProgress=toggle(!!settings.showProgress);else if(f==='gradient'&&!settings.chroma)settings.gradient=toggle(settings.gradient!==false);else if(f==='shadow'&&!settings.chroma)settings.shadow=toggle(settings.shadow!==false);else if(f==='chroma')settings.chroma=toggle(!!settings.chroma);else if(f==='banner')settings.bannerVisible=toggle(!!settings.bannerVisible);else if(f==='flash_timer')settings.flashTimer=toggle(!!settings.flashTimer);else if(f==='flash_message')settings.flashMessage=toggle(!!settings.flashMessage);else return; settingsChanged();
   }
   function remoteCommand(evt){ const c=evt.command,a=evt.args||{},seconds=Number(a.seconds??a.value??0);
-    if(c==='add')T.adjust(Math.abs(seconds));else if(c==='subtract')T.adjust(-Math.abs(seconds));else if(c==='set'||c==='preset')T.setTime(seconds);else if(c==='start')startConfigured(true);else if(c==='pause')T.pause();else if(c==='resume')T.resume();else if(c==='toggle'||c==='start_pause')startConfigured(true);else if(c==='reset')T.reset();else if(c==='stop')T.stop();else if(c==='queue_next')T.queueNext();else if(c==='queue_play')T.queuePlay(Math.max(0,Number(a.index??a.cue??1)-1));else if(c==='queue_clear')T.queueClear();else if(c==='feature')setFeature(a.feature,a.op||'toggle');else if(c==='message'){settings.presenterMessage=String(a.text||'').slice(0,300);settings.bannerVisible=true;if(els.messageInput)els.messageInput.value=settings.presenterMessage;settingsChanged();}else if(c==='message_clear'){settings.presenterMessage='';els.messageInput.value='';settingsChanged();}else if(c==='message_show')setFeature('banner','on');else if(c==='message_hide')setFeature('banner','off');else if(c==='flash_timer')setFeature('flash_timer',a.op||'toggle');else if(c==='flash_message')setFeature('flash_message',a.op||'toggle');
+    if(c==='clock_mode')setDisplayMode(a.mode||'toggle');else if(c==='clock_format')setClockFormat(a.format);else if(c==='add')T.adjust(Math.abs(seconds));else if(c==='subtract')T.adjust(-Math.abs(seconds));else if(c==='set'||c==='preset')T.setTime(seconds);else if(c==='start')startConfigured(true);else if(c==='pause')T.pause();else if(c==='resume')T.resume();else if(c==='toggle'||c==='start_pause')startConfigured(true);else if(c==='reset')T.reset();else if(c==='stop')T.stop();else if(c==='queue_next')T.queueNext();else if(c==='queue_play')T.queuePlay(Math.max(0,Number(a.index??a.cue??1)-1));else if(c==='queue_clear')T.queueClear();else if(c==='feature')setFeature(a.feature,a.op||'toggle');else if(c==='message'){settings.presenterMessage=String(a.text||'').slice(0,300);settings.bannerVisible=true;if(els.messageInput)els.messageInput.value=settings.presenterMessage;settingsChanged();}else if(c==='message_clear'){settings.presenterMessage='';els.messageInput.value='';settingsChanged();}else if(c==='message_show')setFeature('banner','on');else if(c==='message_hide')setFeature('banner','off');else if(c==='flash_timer')setFeature('flash_timer',a.op||'toggle');else if(c==='flash_message')setFeature('flash_message',a.op||'toggle');
   }
   R.onCommand(remoteCommand);R.onStatus(ok=>{companionIsOnline=ok;els.bridge.textContent=ok?'Companion connected':'Companion offline';els.bridge.className=`status-pill ${ok?'online':'offline'}`;if(ok)publish();});R.start();
 
   function buildAdjustButtons(container,direction){ ADJUST_PRESETS.forEach(seconds=>{const b=document.createElement('button');b.textContent=`${direction>0?'+':'−'}${formatPreset(seconds)}`;b.onclick=()=>T.adjust(seconds*direction);container.append(b);}); }
   buildAdjustButtons($('addButtons'),1); buildAdjustButtons($('subtractButtons'),-1);
 
+  els.timerMode.onclick=()=>setDisplayMode('timer');els.clockMode.onclick=()=>setDisplayMode('clock');els.clockFormat.onchange=()=>setClockFormat(els.clockFormat.value);
   els.startPause.onclick=()=>startConfigured(false);els.reset.onclick=()=>T.reset();els.stop.onclick=()=>T.stop();els.next.onclick=()=>T.queueNext();
   document.querySelectorAll('#presetTimes button').forEach(b=>b.onclick=()=>T.setTime(Number(b.dataset.seconds)));
   document.querySelectorAll('[data-output-scale]').forEach(b=>b.onclick=()=>{settings.scale=Math.max(.6,Math.min(2,Number(b.dataset.outputScale)||1));settingsChanged()});

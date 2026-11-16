@@ -7,3 +7,11 @@
 .preview-mode .output-timer{font-size:calc(clamp(2rem,17vmin,12rem)*var(--out-scale))}.preview-mode .output-paused,.preview-mode .output-finished{font-size:clamp(.7rem,2vmin,1.2rem)}.preview-mode .output-progress{margin-top:2vmin;width:70vw}.preview-mode .output-banner{bottom:4%;font-size:clamp(.55rem,2.5vmin,1.1rem);padding:.8vmin 2vmin;border-radius:7px}
 .fullscreen-hotspot{position:fixed;right:0;bottom:0;width:140px;height:110px;z-index:100;display:flex;align-items:flex-end;justify-content:flex-end;padding:14px}.output-fullscreen-btn{opacity:0;transform:translateY(6px);pointer-events:none;border:1px solid rgba(255,255,255,.25);background:rgba(7,14,24,.82);color:#fff;border-radius:10px;padding:10px 14px;font:800 .82rem/1 Inter,sans-serif;cursor:pointer;backdrop-filter:blur(10px);transition:.14s}.fullscreen-hotspot:hover .output-fullscreen-btn,.fullscreen-hotspot:focus-within .output-fullscreen-btn{opacity:1;transform:none;pointer-events:auto}.preview-mode .fullscreen-hotspot{display:none!important}
 @keyframes timerFlash{0%,49%{opacity:1}50%,100%{opacity:.12}}@keyframes messageFlash{0%,49%{opacity:1}50%,100%{opacity:.08}}
+
+/* Current time display; wide enough for hh:mm:ss AM/PM with seconds */
+body.clock-output .output-timer{font-size:calc(clamp(2.4rem,15.8vmin,19rem)*var(--out-scale));white-space:nowrap;max-width:98vw;letter-spacing:-.015em}
+body.clock-output.clock-12-output .output-timer{font-size:calc(clamp(2rem,12.6vmin,16rem)*var(--out-scale))}
+body.clock-output .output-paused,body.clock-output .output-finished,body.clock-output .output-progress{display:none!important}
+body.clock-output .output-timer.warning,body.clock-output .output-timer.overtime{color:var(--out-timer)!important}
+body.preview-mode.clock-output .output-timer{font-size:calc(clamp(1.4rem,14vmin,10rem)*var(--out-scale))}
+body.preview-mode.clock-output.clock-12-output .output-timer{font-size:calc(clamp(1.1rem,11.3vmin,8rem)*var(--out-scale))}

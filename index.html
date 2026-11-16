@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#08111f">
   <title>JC AV Timer — Operator</title>
   <link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/app.css?v=5.0.4">
+  <link rel="stylesheet" href="css/app.css?v=5.0.8">
 </head>
 <body class="operator-body">
 <header class="topbar">
@@ -21,8 +21,8 @@
       <span id="bridgeStatus" class="status-pill offline">Companion offline</span>
     </div>
     <div class="topbar-group download-group" aria-label="Downloads">
-      <a class="button-link secondary-btn" data-app-download href="downloads/JC-AV-Timer-Offline-v5.0.7.zip" download>Download Offline App</a>
-      <a class="button-link secondary-btn" data-companion-download href="downloads/JC-AV-Timer-Companion-v0.9.1.tgz" download>Download Companion Module</a>
+      <a class="button-link secondary-btn" data-app-download href="downloads/JC-AV-Timer-Offline-v5.0.8.zip" download>Download Offline App</a>
+      <a class="button-link secondary-btn" data-companion-download href="downloads/JC-AV-Timer-Companion-v0.9.2.tgz" download>Download Companion Module</a>
     </div>
     <div class="topbar-group output-group" aria-label="Output">
       <button id="outputHereBtn" class="secondary-btn">Display Timer Here</button>
@@ -93,6 +93,16 @@
   <section class="center-stack">
     <section class="panel transport-panel">
       <div class="panel-title-row"><div><div class="panel-kicker">LIVE TIMER</div></div><button class="panel-help" data-help="timer">?</button></div>
+      <div class="clock-mode-controls" aria-label="Display source">
+        <div class="display-mode-switch" role="group" aria-label="Timer or clock">
+          <button type="button" id="timerDisplayModeBtn" class="active" aria-pressed="true">Timer</button>
+          <button type="button" id="clockDisplayModeBtn" aria-pressed="false">Clock</button>
+        </div>
+        <label class="clock-format-control" for="clockFormatSelect">Clock format
+          <select id="clockFormatSelect"><option value="24">24 hour</option><option value="12">12 hour (AM / PM)</option></select>
+        </label>
+        <span id="clockZoneHint" class="clock-zone-hint" title="Operator's local timezone"></span>
+      </div>
       <div class="transport-heading">
         <div id="operatorTimer" class="operator-timer">00:00</div>
         <div class="operator-state-wrap"><div id="operatorWarning" class="operator-warning hidden"></div><div id="operatorStateText" class="operator-state">READY</div></div>
@@ -162,11 +172,12 @@
     <div class="help-header"><div><div class="panel-kicker">JC · AV TIMER</div><h2 id="helpTitle">Help & Setup</h2></div><button id="helpCloseBtn" class="help-close" aria-label="Close help">×</button></div>
     <div class="help-layout">
       <nav class="help-index">
-        <button data-help-target="getting-started">Getting Started</button><button data-help-target="timer-help">Live Timer</button><button data-help-target="queue-help">Queue</button><button data-help-target="message-help">Presenter Messages</button><button data-help-target="warnings-help">Warnings</button><button data-help-target="appearance-help">Appearance</button><button data-help-target="output-help">Output</button><button data-help-target="remote-help">Remote Viewer</button><button data-help-target="companion-help">Companion</button><button data-help-target="offline-help">Offline App</button><button data-help-target="shortcuts-help">Shortcuts</button><button data-help-target="troubleshooting-help">Troubleshooting</button>
+        <button data-help-target="getting-started">Getting Started</button><button data-help-target="timer-help">Live Timer</button><button data-help-target="clock-help">Clock</button><button data-help-target="queue-help">Queue</button><button data-help-target="message-help">Presenter Messages</button><button data-help-target="warnings-help">Warnings</button><button data-help-target="appearance-help">Appearance</button><button data-help-target="output-help">Output</button><button data-help-target="remote-help">Remote Viewer</button><button data-help-target="companion-help">Companion</button><button data-help-target="offline-help">Offline App</button><button data-help-target="shortcuts-help">Shortcuts</button><button data-help-target="troubleshooting-help">Troubleshooting</button>
       </nav>
       <div class="help-scroll">
         <section id="getting-started" class="help-section"><h3>Getting Started</h3><p>Enter a duration or choose a preset, then press Start. Start changes to Pause while running. Reset returns to the loaded duration. Stop sets the timer to zero.</p></section>
         <section id="timer-help" class="help-section"><h3>Live Timer</h3><p>Duration accepts colons or periods, so <code>8:00</code> and <code>8.00</code> both mean eight minutes. Countdown continues below zero in red until stopped, reset, or another cue is started.</p></section>
+        <section id="clock-help" class="help-section"><h3>Current Time / Clock</h3><p>Select Clock above the live timer to display the current time on the output, external window, PiP and internet Remote Viewer. Select 24 hour (HH:MM:SS) or 12 hour (HH:MM:SS AM/PM). Seconds always appear. The clock follows the operator computer’s timezone; keep the computer time correct. Your countdown and queue stay intact while the clock is shown. Companion can switch between Timer and Clock and choose the hour format.</p></section>
         <section id="queue-help" class="help-section"><h3>Timer Queue</h3><p>Add a duration and optional cue label. Drag cues to reorder them, use × to delete one cue, or use ▶ to cut immediately to any cue even while another timer is running. Next Cue advances manually; there is no automatic follow.</p></section>
         <section id="message-help" class="help-section"><h3>Presenter Messages</h3><p>Type any message and send it to the lower-third banner. Show/Hide keeps the message stored, Clear removes it, and Flash Message attracts attention without affecting the timer.</p></section>
         <section id="warnings-help" class="help-section"><h3>Warnings</h3><p>Warnings automatically change the timer colour and use the same banner area. Manual presenter messages take priority. Every warning can have its own threshold, wording and colour.</p></section>
@@ -182,6 +193,6 @@
   </div>
 </div>
 
-<script src="js/timer.js?v=5.0.4"></script><script src="js/sync.js?v=5.0.4"></script><script src="js/remote.js?v=5.0.6"></script><script src="js/app.js?v=5.0.4"></script><script src="js/desktop.js?v=5.0.4"></script>
+<script src="js/clock.js?v=5.0.8"></script><script src="js/timer.js?v=5.0.4"></script><script src="js/sync.js?v=5.0.4"></script><script src="js/remote.js?v=5.0.6"></script><script src="js/app.js?v=5.0.8"></script><script src="js/desktop.js?v=5.0.4"></script>
 </body>
 </html>
