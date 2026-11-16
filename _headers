@@ -1,0 +1,6 @@
+# Prevent the operator HTML staying on a previous deployed version.
+/
+  Cache-Control: no-cache, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, must-revalidate
