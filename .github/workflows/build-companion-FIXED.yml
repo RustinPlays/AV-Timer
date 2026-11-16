@@ -1,0 +1,106 @@
+name: Build and Publish JC - AV Timer Companion
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'companion-module/**'
+      - '.github/workflows/build-companion.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify module metadata
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const pkg = require('./companion-module/package.json');
+          const manifest = require('./companion-module/companion/manifest.json');
+          if (pkg.license !== 'MIT' || manifest.license !== 'MIT') throw new Error('Expected MIT license');
+          if (manifest.version !== pkg.version) throw new Error('Companion version mismatch');
+          if (manifest.id !== 'jc-av-timer' || manifest.name !== 'JC - AV Timer') throw new Error('Module identity changed');
+          if (manifest.runtime.entrypoint !== '../main.js') throw new Error('Wrong manifest entrypoint');
+          if (!fs.existsSync('companion-module/main.js')) throw new Error('Module entrypoint missing');
+          console.log('Verified original JC - AV Timer identity, version', pkg.version);
+          NODE
+
+      - name: Build importable Companion package
+        working-directory: companion-module
+        run: npm run package
+
+      - name: Run all module tests
+        working-directory: companion-module
+        run: npm test
+
+      - name: Verify packaged manifest, entrypoint and JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./companion-module/package.json').version")
+          ARCHIVE="downloads/JC-AV-Timer-Companion-v${VERSION}.tgz"
+          test -s "$ARCHIVE"
+          tar -tzf "$ARCHIVE" | grep -Fx 'pkg/companion/manifest.json'
+          tar -tzf "$ARCHIVE" | grep -Fx 'pkg/main.js'
+          node --check companion-module/main.js
+          node --check companion-module/src/feedbacks.js
+          mkdir -p /tmp/jc-avtimer-verify
+          tar -xzf "$ARCHIVE" -C /tmp/jc-avtimer-verify
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const pkg = require('./companion-module/package.json');
+          const m = JSON.parse(fs.readFileSync('/tmp/jc-avtimer-verify/pkg/companion/manifest.json','utf8'));
+          if (m.id !== 'jc-av-timer' || m.name !== 'JC - AV Timer' || m.version !== pkg.version) throw Error('Packaged manifest does not match source');
+          console.log('Verified distributable', pkg.version);
+          NODE
+
+      - name: Upload Companion archive to GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: JC-AV-Timer-Companion
+          path: downloads/JC-AV-Timer-Companion-*.tgz
+          if-no-files-found: error
+
+      - name: Update website download link and publish built archive
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const pkg = require('./companion-module/package.json');
+          const version = pkg.version;
+          const filename = `JC-AV-Timer-Companion-v${version}.tgz`;
+          const expected = `downloads/${filename}`;
+          if (!fs.existsSync(expected)) throw Error(`Missing built archive: ${expected}`);
+          let html = fs.readFileSync('index.html','utf8');
+          const button = `<a class="button-link secondary-btn" data-companion-download href="/${expected}?v=${version}" download="${filename}" title="Download JC - AV Timer Companion v${version}">Download Companion v${version}</a>`;
+          const pattern = /<a\b[^>]*data-companion-download[^>]*>[\s\S]*?<\/a>/;
+          if (!pattern.test(html)) throw Error('Could not find Companion download button in index.html');
+          html = html.replace(pattern, button);
+          fs.writeFileSync('index.html',html);
+          NODE
+          VERSION=$(node -p "require('./companion-module/package.json').version")
+          ARCHIVE="downloads/JC-AV-Timer-Companion-v${VERSION}.tgz"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html "$ARCHIVE"
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish JC - AV Timer Companion v${VERSION}"
+            git push origin HEAD:main
+          else
+            echo 'Website download button and archive are already current.'
+          fi
