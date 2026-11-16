@@ -2,7 +2,7 @@
   "id": "jc-av-timer",
   "name": "JC - AV Timer",
   "shortname": "JC AV Timer",
-  "description": "Live timer and clock with grouped Companion presets, correct live DD/HH/MM/SS variables, and coloured controls",
+  "description": "Auto-switching timer/clock live Companion presets, coloured PLAY/PAUSE feedback and presenter banner presets",
   "version": "0.0.0",
   "license": "MIT",
   "repository": "https://github.com/RustinPlays/AV-Timer",
