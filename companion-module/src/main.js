@@ -1,48 +1,563 @@
-'use strict'
-const http = require('node:http')
-const {InstanceBase,InstanceStatus,runEntrypoint,combineRgb} = require('@companion-module/base')
-const {fields,normalize,initial,liveTimeParts} = require('./state')
-const {modeValues,playPauseText} = require('./live-values')
-const C = { white:combineRgb(255,255,255), black:combineRgb(0,0,0), green:combineRgb(19,130,70), amber:combineRgb(194,122,0), red:combineRgb(175,35,40), blue:combineRgb(25,87,160), grey:combineRgb(50,62,78) }
-function preset(text,steps=[],feedbacks=[],bg=C.grey){return {type:'button',category:'JC AV Timer',name:text,style:{text,size:'auto',color:C.white,bgcolor:bg},steps:steps.length?[{down:steps,up:[]}]:[],feedbacks}}
-function action(actionId,options={}){return {actionId,options}}
-function feedback(feedbackId,style={}){return {feedbackId,options:{},style}}
-function clockVariables(state={}){const zone=String(state.clockTimeZone||'UTC'),fmt=String(state.clockFormat)==='12'?'12':'24';let a;try{a=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]))}catch{a=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]))}const h=Number(a.hour)||0,t24=`${String(h).padStart(2,'0')}:${a.minute}:${a.second}`,t12=`${String(h%12||12).padStart(2,'0')}:${a.minute}:${a.second} ${h>=12?'PM':'AM'}`;return {clockTime:fmt==='12'?t12:t24,clockTime24:t24,clockTime12:t12}}
-class JCTimer extends InstanceBase {
- constructor(internal){super(internal);this.state={...initial};this.server=null;this.port=3210;this.connected=false;this.events=[];this.latestId=0;this.waiters=new Set();this.lastUpdate=0;this.tick=null;this.session='';this.seq=-1}
- async init(config){this.config=config||{};this.setActionDefinitions(this.actions());this.setFeedbackDefinitions(this.feedbacks());this.setVariableDefinitions(fields.map(name=>({variableId:name,name:name.replace(/([A-Z])/g,' $1')})).concat([{variableId:'connected',name:'Connected to website'},{variableId:'time',name:'Timer formatted time'},{variableId:'overtime',name:'Overtime'},{variableId:'next_cue',name:'Next cue'}]));this.setPresetDefinitions(this.presets());await this.startServer();this.tick=setInterval(()=>this.refresh(),500)}
- async configUpdated(config){this.config=config;await this.startServer()}
- async destroy(){clearInterval(this.tick);for(const w of this.waiters)w();this.waiters.clear();if(this.server){const s=this.server;this.server=null;await new Promise(resolve=>s.close(resolve))}}
- getConfigFields(){return [{type:'static-text',id:'info',width:12,label:'Local bridge',value:'Open timer.justincreative.tech in a browser on this same computer. Set its Companion port to match below. No remote IP required.'},{type:'number',id:'port',label:'Local API Port',width:4,min:1024,max:65535,default:3210}]}
- async startServer(){const port=Number(this.config.port)||3210;if(this.server&&this.port===port)return;const old=this.server;this.server=null;if(old)await new Promise(resolve=>old.close(resolve));this.port=port;this.updateStatus(InstanceStatus.Connecting);const server=http.createServer((req,res)=>this.request(req,res));server.on('error',e=>{this.log('error','Timer bridge: '+e.message);this.updateStatus(InstanceStatus.ConnectionFailure)});try{await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',()=>{server.off('error',reject);resolve()})});this.server=server;this.updateStatus(InstanceStatus.Ok)}catch(e){this.log('error','Unable to listen on 127.0.0.1:'+port+' '+e.message);this.updateStatus(InstanceStatus.ConnectionFailure)}}
- request(req,res){const url=new URL(req.url,'http://127.0.0.1');const send=(code,payload)=>{if(res.writableEnded)return;res.writeHead(code,{'content-type':'application/json; charset=utf-8','access-control-allow-origin':'*','access-control-allow-methods':'GET, POST, OPTIONS','access-control-allow-headers':'content-type, target-address-space','access-control-allow-private-network':'true','cache-control':'no-store'});res.end(JSON.stringify(payload))};if(req.method==='OPTIONS')return send(204,{});if(req.method==='GET'&&url.pathname==='/api/status'){this.lastUpdate=Date.now();this.refresh();return send(200,{ok:true,latestId:this.latestId,name:'JC - AV Timer',version:'0.9.6',browserActive:this.connected,port:this.port})}if(req.method==='GET'&&url.pathname==='/api/events'){this.lastUpdate=Date.now();const since=Math.max(0,Number(url.searchParams.get('since'))||0),wait=Math.min(25000,Math.max(0,Number(url.searchParams.get('wait'))||0));const reply=()=>send(200,{events:this.events.filter(e=>e.id>since),latestId:this.latestId});if(this.latestId>since||!wait)return reply();let done=false;const timer=setTimeout(()=>{if(!done){done=true;this.waiters.delete(complete);reply()}},wait);const complete=()=>{if(done)return;done=true;clearTimeout(timer);this.waiters.delete(complete);reply()};this.waiters.add(complete);res.on('close',()=>{if(done)return;done=true;clearTimeout(timer);this.waiters.delete(complete)});return}if(req.method==='POST'&&url.pathname==='/api/state'){let buf='';req.on('data',chunk=>{buf+=chunk;if(buf.length>256000)req.destroy()});req.on('end',()=>{try{const d=JSON.parse(buf);if(!d||typeof d!=='object'||Array.isArray(d))return send(400,{error:'invalid state'});const s=String(d.companionStateSession||''),n=Number(d.companionStateSequence||0);if(s&&s===this.session&&n<this.seq)return send(200,{ok:true,ignored:true});if(s!==this.session){this.session=s;this.seq=-1}this.seq=n;this.state=normalize(d);this.lastUpdate=Date.now();this.refresh(true);send(200,{ok:true})}catch{return send(400,{error:'invalid JSON'})}});return}send(404,{error:'not found'})}
- queue(command,args={}){const evt={id:++this.latestId,command,args};this.events.push(evt);if(this.events.length>300)this.events.shift();for(const resolve of [...this.waiters])resolve();return evt}
- refresh(force=false){const connected=Date.now()-this.lastUpdate<60000;if(connected!==this.connected||force){this.connected=connected;this.checkAllFeedbacks()}const time=modeValues({...this.state,...liveTimeParts(this.state.seconds)});const values={...this.state,...liveTimeParts(this.state.seconds),...clockVariables(this.state),live_time:time.time,live_days:time.days,live_hours:time.hours,live_hours_in_day:time.hoursInDay,live_minutes:time.minutes,live_seconds:time.seconds,live_ampm:time.ampm,live_mode:time.mode,play_pause_text:playPauseText(this.state),connected:connected?'YES':'NO',time:this.state.formatted,overtime:this.state.finished?'YES':'NO',next_cue:this.state.nextCueLabel||''};this.setVariableValues(values);const feedbackSignature=[time.mode,time.clockFormat,time.time,time.days,time.hours,time.minutes,time.seconds,
-      this.state.running,this.state.paused,this.state.finished].join('|');
-    if(this._lastLiveFeedbackTime!==feedbackSignature||force){this._lastLiveFeedbackTime=feedbackSignature;
-      this.checkFeedbacks?.('live_mode_value','start_pause_live')}}
- actions(){const actions={};const add=(id,name,cmd,options=[],makeArgs=()=>({}))=>actions[id]={name,options,callback:evt=>this.queue(cmd,makeArgs(evt.options||{}))};add('start_pause','Start / Pause Toggle','start_pause');add('start','Start','start');add('pause','Pause','pause');add('resume','Resume','resume');add('stop','Stop','stop');add('reset','Reset','reset');add('next_cue','Next Cue','queue_next');add('clock_toggle','Toggle Clock / Timer','clock_mode');add('clock_show','Show Clock','clock_mode',[],()=>({mode:'clock'}));add('timer_show','Show Timer','clock_mode',[],()=>({mode:'timer'}));add('clock_format','Clock Hour Format','clock_format',[{id:'format',type:'dropdown',label:'Hour format',choices:[{id:'24',label:'24 hour'},{id:'12',label:'12 hour (AM/PM)'}],default:'24'}],o=>({format:String(o.format)==='12'?'12':'24'}));add('queue_clear','Clear Cue Queue','queue_clear');add('queue_play','Play Cue Number','queue_play',[{id:'index',type:'number',label:'Cue number',default:1,min:1,max:100}],o=>({index:Number(o.index)||1}));for(const id of ['preset','add','subtract'])add(id,id==='preset'?'Set Timer Duration':id==='add'?'Add Time':'Remove Time',id,[{id:'seconds',type:'number',label:'Seconds',default:60,min:1,max:86400}],o=>({seconds:Number(o.seconds)||60}));for(const id of ['flash_timer','flash_message'])add(id,id.replace('_',' '),'feature',[{id:'op',type:'dropdown',label:'Operation',choices:[{id:'toggle',label:'Toggle'},{id:'on',label:'On'},{id:'off',label:'Off'}],default:'toggle'}],o=>({feature:id,op:o.op}));add('message_show','Show Presenter Message','message_show');add('message_hide','Hide Presenter Message','message_hide');add('message_clear','Clear Presenter Message','message_clear');add('message','Set Presenter Message','message',[{id:'text',type:'textinput',label:'Text',default:'Wrap up please',useVariables:true}],o=>({text:String(o.text||'')}));add('feature','Toggle Appearance/Display Feature','feature',[{id:'feature',type:'dropdown',label:'Feature',choices:['warnings','progress','gradient','shadow','chroma','banner'].map(x=>({id:x,label:x}))},{id:'op',type:'dropdown',label:'Operation',choices:['toggle','on','off'].map(x=>({id:x,label:x})),default:'toggle'}],o=>({feature:o.feature,op:o.op}));return actions}
- feedbacks(){const defs={};const put=(id,name,test,bg,color=C.white)=>{defs[id]={type:'boolean',name,description:'Live state from the timer website',defaultStyle:{bgcolor:bg,color},options:[],callback:()=>this.connected&&!!test(this.state)}};put('clock_mode','Clock visible on output',s=>s.displayMode==='clock',C.blue);put('connected','Timer website connected',()=>true,C.green);put('running','Timer running',s=>s.running&&!s.paused,C.green);put('paused','Timer paused',s=>s.paused,C.amber);put('ready','Timer armed/ready',s=>!s.running&&!s.paused,C.grey);put('overtime','Timer overtime',s=>s.finished||(!s.countUp&&s.duration>0&&s.seconds<0),C.red);put('warning','Timer warning active',s=>s.warningActive,C.amber);put('count_up','Count up enabled',s=>s.countUp,C.blue);put('queue_active','Queue active',s=>s.queueActive,C.blue);put('has_next','Next cue available',s=>s.hasNextCue,C.green);put('message','Presenter message visible',s=>s.bannerVisible,C.blue);put('flash_timer','Flash timer enabled',s=>s.flashTimer,C.amber);put('flash_message','Flash message enabled',s=>s.flashMessage,C.amber);for(const [id,key] of [['progress','progressEnabled'],['gradient','gradientEnabled'],['shadow','shadowEnabled'],['chroma','chromaEnabled'],['light','lightEnabled'],['warnings_enabled','warningsEnabled']])put(id,id.replace('_',' '),s=>s[key],C.blue);defs.start_pause_live={type:'advanced',name:'Live PLAY / PAUSE with colours',affectedProperties:['text','bgcolor','color','size'],options:[],callback:()=>({text:playPauseText(this.state),bgcolor:this.state.running&&!this.state.paused?C.amber:C.green,color:C.white,size:11})};
-    defs.live_mode_value={type:'advanced',name:'Live Timer/Clock displayed field',affectedProperties:['text','bgcolor','color','size'],options:[{id:'field',type:'dropdown',label:'Field',default:'time',choices:['time','days','hours','hoursInDay','minutes','seconds','ampm','mode'].map(id=>({id,label:id}))}],callback:e=>{const v=modeValues({...this.state,...liveTimeParts(this.state.seconds)}),key=String(e.options?.field||'time');return {text:String(v[key]??''),bgcolor:v.isClock?C.blue:this.state.running&&!this.state.paused?C.green:this.state.paused?C.amber:C.grey,color:C.white,size:key==='time'?12:14}}};return defs}
-  presets(){
-    const p={};const group={play:'JC 01 · Start / Pause / Stop',set:'JC 02 · Set Time',add:'JC 03 · Add Time (+)',minus:'JC 04 · Remove Time (-)',live:'JC 05 · Live Display · Auto Clock / Timer',clock:'JC 06 · Clock',queue:'JC 07 · Cue Queue',messages:'JC 09 · Messages / Banner',status:'JC 11 · Feedbacks / Status'};
-    const ref=id=>`$(jc-av-timer:${id})`;
-    const f=(id,bg,options={})=>({feedbackId:id,options,style:{bgcolor:bg,color:C.white}});
-    const add=(id,category,name,text,acts=[],fbs=[],bg=C.grey,size=11,preview=null)=>{const st={text,size:String(size),color:C.white,bgcolor:bg};p[id]={type:'button',category,name,style:st,...(preview==null?{}:{previewStyle:{...st,text:preview}}),steps:[{down:acts,up:[]}],feedbacks:fbs}};
-    add('start_pause',group.play,'PLAY / PAUSE · Live','▶\nPLAY',[action('start_pause')],[f('start_pause_live',C.green)],C.green,11);
-    for(const [id,label,bg] of [['start','START',C.green],['pause','PAUSE',C.amber],['resume','RESUME',C.green],['stop','STOP',C.red],['reset','RESET',C.blue]])add(id,group.play,label,label,[action(id)],[],bg,10);
-    const mins=[1,2,3,5,10,15,20,30,45,60];for(const m of mins)add('preset_'+m,group.set,`Set ${m} min`,`SET\n${m} MIN`,[action('preset',{seconds:m*60})],[],C.blue,10);
-    for(const m of mins)add('add_'+m,group.add,`Add ${m} min`,`+${m} MIN`,[action('add',{seconds:m*60})],[],C.green,11);
-    for(const m of mins)add('subtract_'+m,group.minus,`Remove ${m} min`,`−${m} MIN`,[action('subtract',{seconds:m*60})],[],C.red,11);
-    for(const [id,name,field,preview,size] of [['live_timer','LIVE Timer ↔ Clock · Standard','time','00:00:00',12],['live_timer_small','LIVE Timer ↔ Clock · Compact','time','00:00:00',10],['live_days','Days','days','DD',13],['live_hours','Hours','hours','HH',13],['live_hours_in_day','Hours after days','hoursInDay','HH',13],['live_minutes','Minutes','minutes','MM',13],['live_seconds','Seconds','seconds','SS',13],['live_ampm','AM / PM','ampm','AM/PM',10],['live_mode','Live Mode','mode','TIMER',10]]){const vmap={time:'live_time',days:'live_days',hours:'live_hours',hoursInDay:'live_hours_in_day',minutes:'live_minutes',seconds:'live_seconds',ampm:'live_ampm',mode:'live_mode'};add(id,group.live,name,ref(vmap[field]),[],[f('live_mode_value',C.blue,{field})],C.grey,size,null)}
-    for(const [id,name,v] of [['live_total_hours','Total timer hours','totalHours'],['live_total_minutes','Total timer minutes','totalMinutes'],['live_total_seconds','Total timer seconds','totalSeconds']])add(id,group.live,name,ref(v),[],[],C.grey,11,name);
-    add('clock_live',group.clock,'Clock time',ref('clockTime'),[],[f('clock_mode',C.blue)],C.grey,12,'12:34:56');add('clock_toggle',group.clock,'Clock / Timer','CLOCK / TIMER',[action('clock_toggle')],[f('clock_mode',C.blue)],C.blue,10);add('clock_show',group.clock,'Show clock','SHOW CLOCK',[action('clock_show')],[f('clock_mode',C.blue)],C.blue,10);add('timer_show',group.clock,'Show timer','SHOW TIMER',[action('timer_show')],[],C.grey,10);add('clock_12',group.clock,'12 hour clock','12H CLOCK',[action('clock_format',{format:'12'})],[],C.blue,10);add('clock_24',group.clock,'24 hour clock','24H CLOCK',[action('clock_format',{format:'24'})],[],C.blue,10);
-    add('next_cue',group.queue,'Next cue','NEXT CUE',[action('next_cue')],[f('has_next',C.green)],C.blue,10);
-    const quick=[['standby','Stand by','PLEASE STAND BY',C.blue],['5min','5 minutes','5 MINUTES REMAINING',C.blue],['2min','2 minutes','2 MINUTES REMAINING',C.amber],['1min','1 minute','1 MINUTE REMAINING',C.amber],['30sec','30 seconds','30 SECONDS REMAINING',C.amber],['wrap','Wrap up','PLEASE WRAP UP',C.amber],['time','Time is up','TIME IS UP',C.red],['thanks','Thank you','THANK YOU',C.green],['ready','Presenter ready','PRESENTER READY',C.blue],['go','Go live','GO LIVE',C.green]];
-    for(const [id,name,value,col] of quick)add('message_'+id,group.messages,name,name.toUpperCase(),[action('message',{text:value})],[],col,9);
-    add('message',group.messages,'Current message',ref('bannerText'),[action('message_show')],[f('message',C.blue)],C.grey,10,'MESSAGE');add('banner_show',group.messages,'Show banner','SHOW BANNER',[action('message_show')],[f('message',C.green)],C.green,9);add('banner_hide',group.messages,'Hide banner','HIDE BANNER',[action('message_hide')],[],C.grey,9);add('banner_clear',group.messages,'Clear message','CLEAR TEXT',[action('message_clear')],[],C.red,9);add('banner_flash',group.messages,'Flash message toggle','FLASH TOGGLE',[action('flash_message',{op:'toggle'})],[f('flash_message',C.amber)],C.grey,9);add('banner_flash_on',group.messages,'Flash message ON','FLASH ON',[action('flash_message',{op:'on'})],[],C.amber,9);add('banner_flash_off',group.messages,'Flash message OFF','FLASH OFF',[action('flash_message',{op:'off'})],[],C.grey,9);
-    add('connected',group.status,'Connected',ref('connected'),[],[f('connected',C.green)],C.grey,10,'ONLINE');add('status',group.status,'Timer status',ref('status'),[],[],C.grey,10,'READY');return p;
+const http = require('http')
+const { InstanceBase, Regex, runEntrypoint, InstanceStatus } = require('@companion-module/base')
+const UpdateActions = require('./actions')
+const UpdateFeedbacks = require('./feedbacks')
+const UpdateVariables = require('./variables')
+const UpdatePresets = require('./presets')
+
+class JCAVTimerInstance extends InstanceBase {
+  async init(config) {
+    this.config = config
+    this.state = {}
+    this.server = null
+    this.events = []
+    this.nextEventId = 1
+    this.eventWaiters = new Set()
+    this.browserLastSeen = 0
+    this.browserOnline = false
+    this.healthTimer = null
+    this.liveTimer = null
+    this.lastValues = {}
+    this.lastFeedbackSignature = ''
+
+    this.updateDefinitions()
+    await this.startServer()
+
+    // Health and derived-state loops run inside Companion, not in the browser.
+    // This keeps TIMER / HH / MM / SS and feedback moving even if the browser
+    // window is unfocused or Chrome throttles its background timers.
+    this.healthTimer = setInterval(() => this.refreshBrowserStatus(), 1000)
+    this.liveTimer = setInterval(() => this.publish(), 250)
+    this.publish(true)
   }
 
+  async destroy() {
+    if (this.healthTimer) clearInterval(this.healthTimer)
+    if (this.liveTimer) clearInterval(this.liveTimer)
+    this.healthTimer = null
+    this.liveTimer = null
+    this.resolveEventWaiters()
+    await this.stopServer()
+  }
+
+  async configUpdated(config) {
+    const oldPort = this.port
+    this.config = config
+    if (oldPort !== this.port) {
+      await this.stopServer()
+      await this.startServer()
+    }
+    this.publish(true)
+  }
+
+  getConfigFields() {
+    return [
+      {
+        type: 'textinput',
+        id: 'port',
+        label: 'Local timer API port',
+        width: 4,
+        default: '3210',
+        regex: Regex.PORT,
+        tooltip: 'JC AV Timer connects to Companion on 127.0.0.1 using this port.'
+      }
+    ]
+  }
+
+  get port() {
+    return Number(this.config?.port || 3210)
+  }
+
+  updateDefinitions() {
+    UpdateActions(this)
+    UpdateFeedbacks(this)
+    UpdateVariables(this)
+    UpdatePresets(this)
+  }
+
+  async startServer() {
+    await this.stopServer()
+    this.server = http.createServer((req, res) => this.handleBrowserRequest(req, res))
+    this.server.on('error', err => {
+      this.log('error', `Local timer API error: ${err.message}`)
+      this.updateStatus(InstanceStatus.ConnectionFailure, `Cannot listen on 127.0.0.1:${this.port}`)
+    })
+
+    await new Promise((resolve, reject) => {
+      const onError = err => { this.server?.off('listening', onListening); reject(err) }
+      const onListening = () => { this.server?.off('error', onError); resolve() }
+      this.server.once('error', onError)
+      this.server.once('listening', onListening)
+      this.server.listen(this.port, '127.0.0.1')
+    }).then(() => {
+      this.updateStatus(InstanceStatus.Ok, `Timer API ready on 127.0.0.1:${this.port}`)
+      this.log('info', `JC AV Timer API listening on http://127.0.0.1:${this.port}`)
+    }).catch(err => {
+      this.updateStatus(InstanceStatus.ConnectionFailure, `Port ${this.port}: ${err.message}`)
+      this.log('error', `Unable to start local timer API: ${err.message}`)
+    })
+  }
+
+  async stopServer() {
+    const server = this.server
+    this.server = null
+    if (!server) return
+    await new Promise(resolve => {
+      try { server.close(() => resolve()) } catch { resolve() }
+    })
+  }
+
+  setCors(req, res) {
+    const origin = req.headers.origin || '*'
+    res.setHeader('Access-Control-Allow-Origin', origin === 'null' ? '*' : origin)
+    res.setHeader('Vary', 'Origin')
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    res.setHeader('Access-Control-Allow-Private-Network', 'true')
+    res.setHeader('Cache-Control', 'no-store')
+  }
+
+  json(req, res, status, value) {
+    this.setCors(req, res)
+    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' })
+    res.end(JSON.stringify(value))
+  }
+
+  readJson(req) {
+    return new Promise((resolve, reject) => {
+      let body = ''
+      req.setEncoding('utf8')
+      req.on('data', chunk => {
+        body += chunk
+        if (body.length > 1024 * 1024) req.destroy(new Error('Request body too large'))
+      })
+      req.on('end', () => {
+        if (!body) return resolve({})
+        try { resolve(JSON.parse(body)) } catch (err) { reject(err) }
+      })
+      req.on('error', reject)
+    })
+  }
+
+  touchBrowser() {
+    this.browserLastSeen = Date.now()
+    if (!this.browserOnline) {
+      this.browserOnline = true
+      this.publish(true)
+    }
+  }
+
+  refreshBrowserStatus() {
+    // Generous grace period avoids Connected/Offline flicker when a browser
+    // briefly delays localhost requests while changing focus.
+    const active = this.browserLastSeen > 0 && Date.now() - this.browserLastSeen < 60000
+    if (active !== this.browserOnline) {
+      this.browserOnline = active
+      this.publish(true)
+    }
+  }
+
+  async handleBrowserRequest(req, res) {
+    this.setCors(req, res)
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204)
+      return res.end()
+    }
+
+    const url = new URL(req.url || '/', `http://127.0.0.1:${this.port}`)
+    try {
+      if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/api/status')) {
+        this.touchBrowser()
+        return this.json(req, res, 200, {
+          ok: true,
+          name: 'JC - AV Timer',
+          version: '0.9.4',
+          companionActive: true,
+          browserActive: this.browserOnline,
+          latestId: this.nextEventId - 1,
+          port: this.port,
+          network: this.network?.getStatus?.() || { ok: false, port: this.networkPort, viewerCount: 0 }
+        })
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/events') {
+        this.touchBrowser()
+        const since = Math.max(0, Number(url.searchParams.get('since') || 0))
+        const waitMs = Math.max(0, Math.min(25000, Number(url.searchParams.get('wait') || 0)))
+        let events = this.events.filter(evt => evt.id > since)
+        if (!events.length && waitMs > 0) {
+          await this.waitForEvent(waitMs)
+          events = this.events.filter(evt => evt.id > since)
+          // A long-poll can legitimately sit open for 20 seconds. Refresh the
+          // browser heartbeat when it completes so the connection never drops
+          // merely because it was quietly waiting for a command.
+          this.touchBrowser()
+        }
+        return this.json(req, res, 200, {
+          ok: true,
+          companionActive: true,
+          latestId: this.nextEventId - 1,
+          events
+        })
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/state') {
+        const state = await this.readJson(req)
+        this.state = state && typeof state === 'object' ? state : {}
+        this.touchBrowser()
+        this.publish(true)
+        return this.json(req, res, 200, { ok: true })
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/state') {
+        return this.json(req, res, 200, this.getLiveState())
+      }
+
+      if (req.method === 'GET' && url.pathname.startsWith('/timer/')) {
+        const result = this.enqueuePath(url.pathname)
+        return this.json(req, res, result ? 200 : 404, result ? { ok: true } : { ok: false, error: 'Unknown timer command' })
+      }
+
+      return this.json(req, res, 404, { ok: false, error: 'Not found' })
+    } catch (err) {
+      this.log('warn', `Timer API request failed: ${err.message}`)
+      return this.json(req, res, 400, { ok: false, error: err.message })
+    }
+  }
+
+  waitForEvent(waitMs) {
+    return new Promise(resolve => {
+      const waiter = { resolve, timer: null }
+      waiter.timer = setTimeout(() => {
+        this.eventWaiters.delete(waiter)
+        resolve()
+      }, waitMs)
+      this.eventWaiters.add(waiter)
+    })
+  }
+
+  resolveEventWaiters() {
+    for (const waiter of this.eventWaiters || []) {
+      clearTimeout(waiter.timer)
+      try { waiter.resolve() } catch {}
+    }
+    this.eventWaiters?.clear()
+  }
+
+  enqueue(command, args = {}) {
+    const evt = { id: this.nextEventId++, ts: Date.now(), command, args }
+    this.events.push(evt)
+    if (this.events.length > 500) this.events.splice(0, this.events.length - 500)
+    this.resolveEventWaiters()
+    return evt
+  }
+
+  command(command, args = {}) {
+    this.enqueue(command, args)
+    this.applyOptimisticCommand(command, args)
+    this.publish(true)
+  }
+
+  parseSeconds(token) {
+    const raw = String(token || '').toLowerCase()
+    const m = raw.match(/^(\d+(?:\.\d+)?)(s|m|h)?$/)
+    if (!m) return 0
+    const value = Number(m[1])
+    const unit = m[2] || 's'
+    return Math.max(0, Math.round(value * (unit === 'h' ? 3600 : unit === 'm' ? 60 : 1)))
+  }
+
+  enqueuePath(path) {
+    const parts = path.split('/').filter(Boolean)
+    if (parts[0] !== 'timer') return false
+    const op = parts[1] || ''
+
+    if (op === 'add' || op === 'subtract' || op === 'set' || op === 'preset') {
+      const seconds = this.parseSeconds(parts[2])
+      this.command(op === 'preset' ? 'set' : op, { seconds })
+      return true
+    }
+
+    if (op === 'queue') {
+      const q = parts[2] || ''
+      if (q === 'add') { this.command('queue_add', { seconds: this.parseSeconds(parts[3]) }); return true }
+      if (q === 'start') { this.command('queue_start'); return true }
+      if (q === 'next') { this.command('queue_next'); return true }
+      if (q === 'clear') { this.command('queue_clear'); return true }
+      if (q === 'remove-last') { this.command('queue_remove_last'); return true }
+    }
+
+    if (op === 'feature' && parts[2]) {
+      this.command('feature', { feature: parts[2], op: parts[3] || 'toggle' })
+      return true
+    }
+
+    if (op === 'size' && parts[2]) {
+      const percent = Math.max(60, Math.min(200, Number(parts[2]) || 100))
+      this.command('size', { scale: percent / 100 })
+      return true
+    }
+
+    const map = {
+      start: 'start', pause: 'pause', resume: 'resume', toggle: 'toggle',
+      reset: 'reset', stop: 'stop', next: 'queue_next'
+    }
+    if (map[op]) {
+      this.command(map[op])
+      return true
+    }
+    return false
+  }
+
+  async send(path) {
+    if (!this.enqueuePath(path)) this.log('warn', `Unknown AV Timer command path: ${path}`)
+  }
+
+  getLiveSeconds(now = Date.now(), source = this.state || {}) {
+    let seconds = Number(source.seconds || 0)
+    if (source.running && !source.paused && Number(source.clockAnchorMs) > 0) {
+      const delta = Math.max(0, (now - Number(source.clockAnchorMs)) / 1000)
+      if (source.countUp) seconds = Math.max(0, Number(source.anchorElapsed || 0) + delta)
+      else seconds = Math.max(0, Number(source.anchorRemaining || source.seconds || 0) - delta)
+    }
+    return seconds
+  }
+
+  formatTime(seconds) {
+    const total = Math.max(0, Math.round(Number(seconds) || 0))
+    const h = Math.floor(total / 3600)
+    const m = Math.floor((total % 3600) / 60)
+    const s = total % 60
+    return h > 0
+      ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+
+  getLiveState(now = Date.now()) {
+    const source = this.state || {}
+    const s = { ...source }
+    const seconds = this.getLiveSeconds(now, source)
+    const duration = Math.max(0, Number(source.duration || 0))
+
+    s.seconds = seconds
+    s.displayTime = this.formatTime(seconds)
+    s.formatted = s.displayTime
+    const total = Math.max(0, Math.round(seconds))
+    s.hours = String(Math.floor(total / 3600)).padStart(2, '0')
+    s.minutes = String(Math.floor((total % 3600) / 60)).padStart(2, '0')
+    s.secondsPart = String(total % 60).padStart(2, '0')
+
+    if (!source.countUp && source.running && seconds <= 0) {
+      s.running = false
+      s.paused = false
+      s.finished = true
+    }
+
+    s.status = s.finished ? 'TIME' : s.paused ? 'PAUSED' : s.running ? (s.countUp ? 'COUNTING UP' : 'RUNNING') : duration > 0 ? 'ARMED' : 'READY'
+    s.pauseResumeLabel = s.paused ? 'RESUME' : 'PAUSE'
+
+    const display = source.display || {}
+    const warningsEnabled = source.warningsEnabled !== false && display.warningsEnabled !== false
+    if (warningsEnabled && !s.finished) {
+      const warningRemaining = s.countUp && duration > 0 ? Math.max(0, duration - seconds) : Math.max(0, seconds)
+      const rules = (display.warningRules || [])
+        .filter(r => r && r.enabled !== false && Number(r.threshold) > 0 && warningRemaining <= Number(r.threshold))
+        .sort((a, b) => Number(a.threshold) - Number(b.threshold))
+      const warning = rules[0] || null
+      s.warningActive = !!warning
+      s.warningLabel = warning?.label || ''
+      s.warningColor = warning?.color || ''
+      s.warningRemaining = warningRemaining
+    } else if (s.finished) {
+      s.warningActive = false
+      s.warningLabel = ''
+    }
+
+    const progressPercent = duration > 0 ? (seconds / duration) * 100 : 0
+    s.progressPercent = Math.max(0, Math.min(100, progressPercent))
+    return s
+  }
+
+  captureLiveToAnchors() {
+    const live = this.getLiveState()
+    const now = Date.now()
+    this.state.seconds = live.seconds
+    this.state.clockAnchorMs = now
+    if (this.state.countUp) this.state.anchorElapsed = live.seconds
+    else this.state.anchorRemaining = live.seconds
+    return live
+  }
+
+  applyOptimisticCommand(command, args = {}) {
+    const s = this.state || (this.state = {})
+    const seconds = Math.max(0, Number(args.seconds || 0))
+    const now = Date.now()
+    const live = this.captureLiveToAnchors()
+
+    if (command === 'set') {
+      s.duration = seconds
+      s.seconds = seconds
+      s.anchorRemaining = seconds
+      s.anchorElapsed = 0
+      s.clockAnchorMs = now
+      s.finished = false
+      if (!s.running) s.paused = false
+    } else if (command === 'add' || command === 'subtract') {
+      const delta = command === 'add' ? seconds : -seconds
+      const next = Math.max(0, Number(live.seconds || 0) + delta)
+      s.seconds = next
+      s.duration = Math.max(0, Number(s.duration || 0) + delta)
+      if (s.countUp && s.running) s.anchorElapsed = next
+      else s.anchorRemaining = next
+      s.clockAnchorMs = now
+      if (s.finished && next > 0) { s.finished = false; s.running = true; s.paused = false }
+    } else if (command === 'start') {
+      if (Number(s.duration || live.seconds || 0) > 0 || s.countUp) {
+        s.running = true
+        s.paused = false
+        s.finished = false
+        s.clockAnchorMs = now
+        if (s.countUp) s.anchorElapsed = Number(live.seconds || 0)
+        else s.anchorRemaining = Number(live.seconds || s.duration || 0)
+      }
+    } else if (command === 'pause' && s.running && !s.paused) {
+      s.seconds = live.seconds
+      s.paused = true
+      s.clockAnchorMs = now
+      if (s.countUp) s.anchorElapsed = live.seconds
+      else s.anchorRemaining = live.seconds
+    } else if (command === 'resume' && s.running && s.paused) {
+      s.paused = false
+      s.clockAnchorMs = now
+      if (s.countUp) s.anchorElapsed = Number(s.seconds || 0)
+      else s.anchorRemaining = Number(s.seconds || 0)
+    } else if (command === 'toggle' && s.running) {
+      if (s.paused) {
+        s.paused = false
+        s.clockAnchorMs = now
+        if (s.countUp) s.anchorElapsed = Number(s.seconds || 0)
+        else s.anchorRemaining = Number(s.seconds || 0)
+      } else {
+        s.seconds = live.seconds
+        s.paused = true
+        s.clockAnchorMs = now
+        if (s.countUp) s.anchorElapsed = live.seconds
+        else s.anchorRemaining = live.seconds
+      }
+    } else if (command === 'reset') {
+      s.seconds = Number(s.duration || 0)
+      s.running = Number(s.duration || 0) > 0 || !!s.countUp
+      s.paused = false
+      s.finished = false
+      s.clockAnchorMs = now
+      s.anchorRemaining = Number(s.duration || 0)
+      s.anchorElapsed = 0
+    } else if (command === 'stop') {
+      Object.assign(s, {
+        seconds: 0, duration: 0, running: false, paused: false, finished: false,
+        countUp: false, clockAnchorMs: 0, anchorRemaining: 0, anchorElapsed: 0,
+        queueActive: false, queueAwaitingNext: false
+      })
+    } else if (command === 'feature') {
+      const feature = String(args.feature || '').toLowerCase()
+      const keyMap = {
+        queue: 'queueEnabled', warnings: 'warningsEnabled', warning: 'warningsEnabled', progress: 'progressEnabled',
+        gradient: 'gradientEnabled', minimal: 'minimalEnabled', chroma: 'chromaEnabled', light: 'lightEnabled',
+        auto_next: 'autoNext', autostart: 'autostart', count_up: 'countUp'
+      }
+      const key = keyMap[feature]
+      if (key) {
+        const current = s[key] !== undefined ? !!s[key] : (key === 'warningsEnabled' || key === 'gradientEnabled' || key === 'autostart')
+        s[key] = args.op === 'on' ? true : args.op === 'off' ? false : !current
+      }
+    } else if (command === 'size') {
+      s.outputScale = Math.max(0.6, Math.min(2, Number(args.scale) || 1))
+      s.display = { ...(s.display || {}), scale: s.outputScale }
+    } else if (command === 'queue_add') {
+      s.queueLength = Math.max(0, Number(s.queueLength || 0) + 1)
+      s.queueEnabled = true
+    } else if (command === 'queue_remove_last') {
+      s.queueLength = Math.max(0, Number(s.queueLength || 0) - 1)
+    } else if (command === 'queue_clear') {
+      s.queueLength = 0
+    }
+  }
+
+  publish(force = false) {
+    const s = this.getLiveState()
+    const displayTime = s.displayTime || '00:00'
+    const values = {
+      display_time: displayTime,
+      remaining: displayTime,
+      hours: s.hours || '00',
+      minutes: s.minutes || '00',
+      seconds_part: s.secondsPart || '00',
+      seconds: Math.max(0, Math.round(Number(s.seconds || 0))),
+      duration: Math.max(0, Math.round(Number(s.duration || 0))),
+      status: s.status || 'READY',
+      connection_status: this.browserOnline ? 'CONNECTED' : 'OFFLINE',
+      pause_resume_label: s.pauseResumeLabel || 'PAUSE',
+      running: s.running && !s.paused ? 'yes' : 'no',
+      paused: s.paused ? 'yes' : 'no',
+      warning: s.warningActive ? 'yes' : 'no',
+      warning_label: s.warningLabel || '',
+      warning_display: s.warningActive ? (s.warningLabel || 'WARNING') : 'WARNING\nOFF',
+      warning_remaining: Math.max(0, Math.round(Number(s.warningRemaining || 0))),
+      queue_length: Math.max(0, Math.round(Number(s.queueLength || 0))),
+      queue_enabled: s.queueEnabled ? 'yes' : 'no',
+      warnings_enabled: s.warningsEnabled === false ? 'no' : 'yes',
+      progress_enabled: s.progressEnabled ? 'yes' : 'no',
+      gradient_enabled: s.gradientEnabled === false ? 'no' : 'yes',
+      minimal_enabled: s.minimalEnabled ? 'yes' : 'no',
+      chroma_enabled: s.chromaEnabled ? 'yes' : 'no',
+      light_enabled: s.lightEnabled ? 'yes' : 'no',
+      auto_next: s.autoNext ? 'yes' : 'no',
+      autostart: s.autostart === false ? 'no' : 'yes',
+      count_up: s.countUp ? 'yes' : 'no',
+      output_size: Math.round(Number(s.outputScale || s.display?.scale || 1) * 100),
+      queue_state: s.queueEnabled ? 'ON' : 'OFF',
+      warnings_state: s.warningsEnabled === false ? 'OFF' : 'ON',
+      progress_state: s.progressEnabled ? 'ON' : 'OFF',
+      gradient_state: s.gradientEnabled === false ? 'OFF' : 'ON',
+      minimal_state: s.minimalEnabled ? 'ON' : 'OFF',
+      chroma_state: s.chromaEnabled ? 'ON' : 'OFF',
+      light_state: s.lightEnabled ? 'ON' : 'OFF',
+      auto_next_state: s.autoNext ? 'ON' : 'OFF',
+      autostart_state: s.autostart === false ? 'OFF' : 'ON',
+      count_up_state: s.countUp ? 'ON' : 'OFF',
+      bridge_online: this.browserOnline ? 'yes' : 'no',
+      browser_online: this.browserOnline ? 'yes' : 'no',
+      feedback_instances: typeof this.getFeedbackInstanceCount === 'function' ? this.getFeedbackInstanceCount() : 0
+    }
+
+    const changed = {}
+    for (const [key, value] of Object.entries(values)) {
+      if (force || this.lastValues[key] !== value) changed[key] = value
+    }
+    if (Object.keys(changed).length) {
+      this.setVariableValues(changed)
+      Object.assign(this.lastValues, changed)
+    }
+
+    const feedbackSignature = JSON.stringify({
+      t: values.display_time, status: values.status, conn: values.connection_status,
+      paused: values.paused, running: values.running, warning: values.warning,
+      warningLabel: values.warning_label, q: values.queue_length,
+      qe: values.queue_enabled, we: values.warnings_enabled, pe: values.progress_enabled,
+      ge: values.gradient_enabled, me: values.minimal_enabled, ce: values.chroma_enabled,
+      le: values.light_enabled, an: values.auto_next, as: values.autostart, cu: values.count_up,
+      os: values.output_size
+    })
+
+    if (force || feedbackSignature !== this.lastFeedbackSignature) {
+      this.lastFeedbackSignature = feedbackSignature
+      this.checkFeedbacks(
+        'bridge_online', 'browser_online', 'running', 'paused', 'warning_active', 'finished',
+        'queue_enabled', 'warnings_enabled', 'progress_enabled', 'gradient_enabled', 'minimal_enabled',
+        'chroma_enabled', 'light_enabled', 'auto_next', 'autostart', 'count_up'
+      )
+    }
+  }
 }
-runEntrypoint(JCTimer,[])
+
+runEntrypoint(JCAVTimerInstance, [])

@@ -1,30 +1,11 @@
-# JC - AV Timer · Companion v0.9.5
+# JC - AV Timer Companion v0.9.8
 
-## Preset groups
-01 Start/Pause/Stop · 02 Set Time · 03 Add (+) · 04 Remove (-) · 05 Live Timer
-06 Clock · 07 Cue Queue · 08 Add To Queue · 09 Messages · 10 Appearance · 11 Feedbacks/Status.
+The local timer site and Companion must run on the same Windows computer for port 3210.
 
-Add time is green, remove time red; pause amber, stop red, clock blue.
+## State-aware Companion presets
+- JC 01: PLAY/PAUSE shows PLAY (green) when paused/ready and PAUSE (yellow) while running. Dedicated Start, Pause, Resume, Stop and Reset buttons indicate their states.
+- JC 05: Drag **LIVE Timer ↔ Clock · Standard** to display whichever output is selected. It updates seconds and changes colour with Clock/Timer mode.
+- JC 06: Toggle Clock/Timer displays SHOW CLOCK (blue) or SHOW TIMER (purple), plus state-aware Show Clock, Show Timer, 12H and 24H controls.
+- JC 09: Show / Hide Banner is one button that follows visibility; Flash Banner toggle reads ON / OFF. Quick messages are grouped alongside Show/Hide/Clear.
 
-## Live timer buttons
-Drag the live timer, DD, HH, MM, SS or totals buttons straight onto your Companion
-button grid. They carry the required live variable expression and colour feedback.
-- DD: number of whole days remaining/elapsed
-- HH: **total hours** (can be over 24); Hours in day is 00-23
-- MM: minutes portion of the current hour (00-59)
-- SS: seconds portion of current minute (00-59)
-- Total minutes / total seconds: whole totals, not the minute/second component
-- Clock time: local computer clock in 12h or 24h format with seconds
-
-Existing buttons remain intact. To get revised formatting, drag the new presets
-on top of your old ones. The original module ID is jc-av-timer.
-
-Companion and browser are designed for the same computer, via localhost port 3210.
-A browser on another laptop does not talk directly to this localhost connection.
-
-## One live time button (Clock ↔ Timer)
-Drag **LIVE Timer ↔ Clock · Standard** from the JC 05 · Live Display group.
-This uses the live_time variable in a single button and changes automatically with the operator's selected mode.
-Timer mode uses HH:MM:SS; Clock mode uses HH:MM:SS or HH:MM:SS AM/PM.
-For previously placed static 00:00:00 buttons, delete them and re-drag this preset.
-The timer operator webpage must be open and connected to this Companion computer's local API.
+Re-drag the updated presets onto any old Companion buttons created using v0.9.7 or earlier. Those old buttons may retain older feedback settings.

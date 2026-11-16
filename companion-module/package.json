@@ -1,20 +1,15 @@
 {
   "name": "companion-module-jc-av-timer",
-  "version": "0.9.7",
-  "private": true,
-  "main": "src/main.js",
+  "version": "0.9.8",
   "license": "MIT",
+  "private": true,
+  "type": "commonjs",
+  "main": "main.js",
   "scripts": {
-    "package": "companion-module-build",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "package": "node scripts/build-package.js"
   },
   "engines": {
     "node": ">=22"
-  },
-  "dependencies": {
-    "@companion-module/base": "~1.14.1"
-  },
-  "devDependencies": {
-    "@companion-module/tools": "^2.8.0"
   }
 }

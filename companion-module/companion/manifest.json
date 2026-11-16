@@ -1,36 +1,43 @@
 {
+  "$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+  "type": "connection",
   "id": "jc-av-timer",
   "name": "JC - AV Timer",
   "shortname": "JC AV Timer",
-  "description": "Single live Timer/Clock time variable and preset, mode-following clock and countdown, coloured control buttons",
-  "version": "0.0.0",
+  "description": "Live Timer / Clock time, state-aware presets, banner and flash toggle feedbacks",
+  "version": "0.9.8",
   "license": "MIT",
   "repository": "https://github.com/RustinPlays/AV-Timer",
   "bugs": "https://github.com/RustinPlays/AV-Timer/issues",
   "maintainers": [
     {
-      "name": "JC"
+      "name": "Justin O'Shea"
     }
   ],
+  "runtime": {
+    "type": "node22",
+    "api": "nodejs-ipc",
+    "apiVersion": "1.12.1",
+    "entrypoint": "../main.js"
+  },
   "legacyIds": [
     "jc-avtimer",
     "joc-av-timer",
     "jc-timer"
   ],
-  "runtime": {
-    "type": "node22",
-    "api": "nodejs-ipc",
-    "apiVersion": "0.0.0",
-    "entrypoint": "../src/main.js"
-  },
-  "manufacturer": "JC",
+  "manufacturer": "J Creative",
   "products": [
     "AV Timer"
   ],
   "keywords": [
+    "JC",
+    "J Creative",
+    "Justin Creative",
+    "Justin OShea",
+    "AV Timer",
+    "RustinPlays",
     "timer",
-    "presentation",
-    "countdown"
-  ],
-  "type": "connection"
+    "show timer",
+    "ontime"
+  ]
 }
