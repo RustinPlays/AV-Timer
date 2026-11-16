@@ -28,7 +28,7 @@ test('packaged preset and feedback drive the SAME button between timer and clock
   const {createRequire}=require('node:module')
   const parent=fs.mkdtempSync(path.join(os.tmpdir(),'jc-one-live-'))
   try {
-    execFileSync('tar',['-xzf',path.resolve(__dirname,'../../downloads/JC-AV-Timer-Companion-v0.9.7.tgz'),'-C',parent])
+    execFileSync('tar',['-xzf',path.resolve(__dirname,'../../downloads/JC-AV-Timer-Companion-v0.9.8.tgz'),'-C',parent])
     const root=path.join(parent,'pkg')
     const pkgRequire=createRequire(path.join(root,'main.js'))
     let presets,definitions

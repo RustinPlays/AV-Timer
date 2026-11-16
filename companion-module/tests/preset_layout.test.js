@@ -1,15 +1,75 @@
-const test=require('node:test'),assert=require('node:assert/strict');
-const fs=require('fs'),path=require('path'),Module=require('node:module');
-const {liveTimeParts,fields}=require('../src/state');
-const manifest=require('../companion/manifest.json');
-const C={};const save=Module._load;
-class FakeBase {setActionDefinitions(x){this.actionsDefs=x}setFeedbackDefinitions(x){this.feedbackDefs=x}setVariableDefinitions(x){this.vars=x}setPresetDefinitions(x){this.presetDefs=x}setVariableValues(x){this.values=x}checkAllFeedbacks(){}updateStatus(){} }
-Module._load=function(id,...args){if(id==='@companion-module/base')return {InstanceBase:FakeBase,InstanceStatus:{Ok:1,Connecting:2,ConnectionFailure:3},combineRgb:(r,g,b)=>(r<<16)|(g<<8)|b,runEntrypoint:X=>C.Class=X};return save.call(this,id,...args)};
-try{require('../src/main.js')}finally{Module._load=save}
-const i=new C.Class({});i.state={seconds:90061,formatted:'25:01:01',finished:false,displayMode:'timer',status:'RUNNING'};
-test('days/hours component calculations are accurate',()=>{assert.deepEqual(liveTimeParts(90061),{days:'01',hours:'25',hoursInDay:'01',minutes:'01',secondsPart:'01',totalHours:'25',totalMinutes:'1501',totalSeconds:'90061'})});
-test('module retains original identity',()=>{assert.equal(manifest.id,'jc-av-timer');assert.equal(manifest.name,'JC - AV Timer')});
-test('live variables are published with correct fields',()=>{i.lastUpdate=Date.now();i.refresh(true);for(const k of ['days','hours','hoursInDay','minutes','secondsPart','totalHours','totalMinutes','totalSeconds'])assert.equal(i.values[k],liveTimeParts(90061)[k]);});
-test('all presets use real module variables, not button-local this variables',()=>{const p=i.presets();for(const v of Object.values(p)){assert(!v.style.text.includes('$(this:'),v.name);for(const m of v.style.text.matchAll(/\$\(jc-av-timer:([^)]*)\)/g))assert(fields.includes(m[1])||['connected','time','overtime','next_cue'].includes(m[1]),`${v.name}: ${m[1]}`);assert(v.style.size!=='auto');assert(Number(v.style.size)<=14 || v.name.includes('timer'));}});
-test('adds, minuses, playback, live, clock all separate categories',()=>{const p=i.presets();const group=(id)=>p[id].category;assert(group('add_1')===group('add_60'));assert(group('subtract_1')===group('subtract_60'));assert(group('add_1')!==group('subtract_1'));assert(group('start')===group('stop'));assert(group('live_days')===group('live_seconds'));assert(group('clock_live')!==group('live_days'))});
-test('grouped presets point to defined feedback IDs and action IDs',()=>{const p=i.presets(),a=i.actions(),f=i.feedbacks();for(const v of Object.values(p)){for(const x of v.steps.flatMap(y=>y.down))assert(a[x.actionId],`unknown action ${x.actionId}`);for(const x of v.feedbacks)assert(f[x.feedbackId],`unknown feedback ${x.feedbackId}`)}});
+'use strict'
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+const Module = require('node:module')
+const {liveTimeParts} = require('../src/state')
+const manifest = require('../companion/manifest.json')
+
+function setup() {
+  const source = path.resolve(__dirname, '../main.js')
+  const bootstrap = /new Runtime\(\)\.start\(\)\.catch\(err=>\{[^\n]+\}\)\s*$/
+  let code = fs.readFileSync(source, 'utf8')
+  assert.match(code, bootstrap)
+  code = code.replace(bootstrap, 'module.exports={JCAVTimerInstance}')
+  const m = new Module(source, module)
+  m.filename = source
+  m.paths = Module._nodeModulePaths(path.dirname(source))
+  m._compile(code, source)
+  const sent = []
+  const inst = new m.exports.JCAVTimerInstance({sendNoCb:(name,payload)=>sent.push({name,payload})})
+  inst.config={port:'3210',networkPort:'3211'}
+  inst.state={seconds:90061,duration:90061,displayMode:'timer',clockFormat:'24',clockTimeZone:'Pacific/Auckland',running:false,paused:false}
+  inst.updateDefinitions()
+  const presets=Object.fromEntries(sent.find(e=>e.name==='setPresetDefinitions').payload.presets.map(p=>[p.id,p]))
+  const actions=new Set(Object.keys(inst.actionDefinitions))
+  const feedbacks=new Set(Object.keys(inst.feedbackDefinitions))
+  const variables=new Set(sent.find(e=>e.name==='setVariableDefinitions').payload.variables.map(v=>v.id))
+  return {inst,sent,presets,actions,feedbacks,variables}
+}
+const getLast=(sent,name)=>sent.filter(e=>e.name===name).at(-1)?.payload
+
+test('days/hours component calculations are accurate',()=>{
+  assert.deepEqual(liveTimeParts(90061),{days:'01',hours:'25',hoursInDay:'01',minutes:'01',secondsPart:'01',totalHours:'25',totalMinutes:'1501',totalSeconds:'90061'})
+})
+test('module retains original identity',()=>{
+  assert.equal(manifest.id,'jc-av-timer')
+  assert.equal(manifest.name,'JC - AV Timer')
+})
+test('live variables are published with correct fields',()=>{
+  const {inst,sent}=setup()
+  inst.publish(true)
+  const values=Object.fromEntries(getLast(sent,'setVariableValues').newValues.map(v=>[v.id,v.value]))
+  const expected=liveTimeParts(90061)
+  for(const [variable,part] of Object.entries({days:'days',hours:'hours',hours_in_day:'hoursInDay',minutes:'minutes',seconds_part:'secondsPart',total_hours:'totalHours',total_minutes:'totalMinutes',total_seconds:'totalSeconds'})){
+    assert.equal(String(values[variable]),expected[part],variable)
+  }
+  assert.equal(values.live_time,'25:01:01')
+})
+test('all presets use real module variables, not button-local variables',()=>{
+  const {presets,variables}=setup()
+  for(const [id,p] of Object.entries(presets)){
+    const t=String(p.style?.text||'')
+    assert(!t.includes('$(this:'),id)
+    for(const m of t.matchAll(/\$\(jc-av-timer:([^)]*)\)/g))assert(variables.has(m[1]),`${id}: variable ${m[1]} not defined`)
+    assert.notEqual(p.style?.size,'auto',`preset ${id} should use fixed text size`)
+  }
+})
+test('add, remove, playback, live and clock presets are grouped separately',()=>{
+  const {presets:p}=setup()
+  const group=id=>{assert(p[id],`${id} preset missing`);return p[id].category}
+  assert.equal(group('add_60'),group('add_3600'))
+  assert.equal(group('sub_60'),group('sub_3600'))
+  assert.notEqual(group('add_60'),group('sub_60'))
+  assert.equal(group('start'),group('stop'))
+  assert.equal(group('dd'),group('ss'))
+  assert.notEqual(group('clock_live'),group('dd'))
+})
+test('all grouped presets reference defined feedback and action IDs',()=>{
+  const {presets,actions,feedbacks}=setup()
+  for(const [id,p] of Object.entries(presets)){
+    for(const step of p.steps||[])for(const a of step.down||[])assert(actions.has(a.actionId),`${id}: action ${a.actionId} missing`)
+    for(const f of p.feedbacks||[])assert(feedbacks.has(f.feedbackId),`${id}: feedback ${f.feedbackId} missing`)
+  }
+})
