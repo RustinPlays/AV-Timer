@@ -1,6 +1,6 @@
 'use strict'
-const fields = ['formatted','displayTime','hours','minutes','secondsPart','duration','seconds','status','pauseResumeLabel','running','paused','finished','countUp','progressPercent','warningActive','warningLabel','warningColor','warningRemaining','queueLength','queueActive','currentCueIndex','currentCueNumber','currentCueLabel','currentCueDuration','nextCueLabel','nextCueDuration','hasNextCue','warningsEnabled','progressEnabled','gradientEnabled','chromaEnabled','lightEnabled','shadowEnabled','autostart','bannerVisible','bannerText','bannerKind','flashTimer','flashMessage','presenterMessage','remoteViewerCount','displayMode','clockFormat','clockTime','clockTime24','clockTime12','clockTimeZone']
-const initial = { formatted:'00:00',displayTime:'00:00',hours:'00',minutes:'00',secondsPart:'00',seconds:0,duration:0,status:'READY',displayMode:'timer',clockFormat:'24',clockTime:'00:00:00',clockTime24:'00:00:00',clockTime12:'12:00:00 AM',clockTimeZone:'UTC',pauseResumeLabel:'START',running:false,paused:false,finished:false,countUp:false,progressPercent:0,queueLength:0,currentCueIndex:-1,currentCueNumber:0,currentCueLabel:'',nextCueLabel:'',hasNextCue:false,warningActive:false,bannerVisible:false,flashTimer:false,flashMessage:false }
+const fields = ['formatted','displayTime','days','hours','hoursInDay','minutes','secondsPart','totalHours','totalMinutes','totalSeconds','duration','seconds','status','pauseResumeLabel','running','paused','finished','countUp','progressPercent','warningActive','warningLabel','warningColor','warningRemaining','queueLength','queueActive','currentCueIndex','currentCueNumber','currentCueLabel','currentCueDuration','nextCueLabel','nextCueDuration','hasNextCue','warningsEnabled','progressEnabled','gradientEnabled','chromaEnabled','lightEnabled','shadowEnabled','autostart','bannerVisible','bannerText','bannerKind','flashTimer','flashMessage','presenterMessage','remoteViewerCount','displayMode','clockFormat','clockTime','clockTime24','clockTime12','clockTimeZone']
+const initial = { formatted:'00:00',displayTime:'00:00',days:'00',hours:'00',hoursInDay:'00',minutes:'00',secondsPart:'00',totalHours:'00',totalMinutes:'00',totalSeconds:'0',seconds:0,duration:0,status:'READY',displayMode:'timer',clockFormat:'24',clockTime:'00:00:00',clockTime24:'00:00:00',clockTime12:'12:00:00 AM',clockTimeZone:'UTC',pauseResumeLabel:'START',running:false,paused:false,finished:false,countUp:false,progressPercent:0,queueLength:0,currentCueIndex:-1,currentCueNumber:0,currentCueLabel:'',nextCueLabel:'',hasNextCue:false,warningActive:false,bannerVisible:false,flashTimer:false,flashMessage:false }
 function normalize(raw) {
   const state = { ...initial }
   for (const k of fields) if (Object.prototype.hasOwnProperty.call(raw||{},k) && raw[k] != null) state[k] = raw[k]
@@ -14,7 +14,17 @@ function normalize(raw) {
   state.formatted=String(state.formatted||state.displayTime||'00:00')
   state.displayTime=String(state.displayTime||state.formatted)
   // Preserve timer's supplied per-digit strings (including negative HH) rather than modulo by mistake.
-  for (const k of ['hours','minutes','secondsPart']) state[k]=String(state[k]??'00')
+  for (const k of ['days','hours','hoursInDay','minutes','secondsPart','totalHours','totalMinutes','totalSeconds']) state[k]=String(state[k]??'00')
   return state
 }
-module.exports={fields,initial,normalize}
+function liveTimeParts(seconds) {
+  // Components are derived from the same seconds value used for the countdown.
+  // Preserve the original hours field as *total* hours for backwards compatibility.
+  const n=Math.floor(Math.abs(Number(seconds)||0));
+  const pad=value=>String(value).padStart(2,'0');
+  return {days:pad(Math.floor(n/86400)),hours:pad(Math.floor(n/3600)),
+    hoursInDay:pad(Math.floor(n/3600)%24),minutes:pad(Math.floor(n/60)%60),
+    secondsPart:pad(n%60),totalHours:pad(Math.floor(n/3600)),
+    totalMinutes:String(Math.floor(n/60)),totalSeconds:String(n)};
+}
+module.exports={fields,initial,normalize,liveTimeParts}
