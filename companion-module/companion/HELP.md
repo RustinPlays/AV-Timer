@@ -21,3 +21,10 @@ on top of your old ones. The original module ID is jc-av-timer.
 
 Companion and browser are designed for the same computer, via localhost port 3210.
 A browser on another laptop does not talk directly to this localhost connection.
+
+## One live time button (Clock ↔ Timer)
+Drag **LIVE Timer ↔ Clock · Standard** from the JC 05 · Live Display group.
+This uses the live_time variable in a single button and changes automatically with the operator's selected mode.
+Timer mode uses HH:MM:SS; Clock mode uses HH:MM:SS or HH:MM:SS AM/PM.
+For previously placed static 00:00:00 buttons, delete them and re-drag this preset.
+The timer operator webpage must be open and connected to this Companion computer's local API.
